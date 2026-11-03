@@ -110,7 +110,7 @@
       q.events = [{ type: 'pass', from: 'QB', to: r, brk: brk }];
       var sim = E.buildSim(q); var ev = sim.P.events[0]; if (!ev.catchPt || ev.catchPt[1] <= 0.5) return;
       var out = D.simulate(def, sim).result; if (out.kind === 'sack') return;
-      res.push({ r: r, sep: out.sep || 0, gain: out.gain });
+      res.push({ r: r, sep: out.kind === 'int' ? -2 : out.kind === 'inc' ? Math.min(out.sep || 0, 0.5) : out.sep || 0, gain: out.gain });
     });
     if (res.length < 3) return null;
     res.sort(function (a, b) { return b.sep - a.sep; });
@@ -123,7 +123,7 @@
     };
   }
   function beatCoverageQ(def, offs) {
-    var scored = offs.filter(pureQBPass).map(function (p) { var r = D.simulate(def, E.buildSim(p)).result; return { p: p, s: r.kind === 'sack' ? -9 : (r.sep || 0) * 2 + r.gain / 4 + (r.kind === 'td' ? 5 : 0), r: r }; });
+    var scored = offs.filter(pureQBPass).map(function (p) { var r = D.simulate(def, E.buildSim(p)).result; return { p: p, s: r.kind === 'sack' || r.kind === 'int' ? -9 : r.kind === 'inc' ? -4 : (r.sep || 0) * 2 + r.gain / 4 + (r.kind === 'td' ? 5 : 0), r: r }; });
     if (scored.length < 3) return null;
     scored.sort(function (a, b) { return b.s - a.s; });
     if (scored[0].s - scored[1].s < 1.5) return null;
@@ -138,7 +138,7 @@
   }
   function bestCallQ(off, defs) {
     if (defs.length < 3) return null;
-    var scored = defs.map(function (d) { var r = D.simulate(d, E.buildSim(off)).result; return { d: d, s: r.kind === 'sack' ? -6 : r.kind === 'td' ? 40 : r.gain + (r.sep || 0) * 2, r: r }; });
+    var scored = defs.map(function (d) { var r = D.simulate(d, E.buildSim(off)).result; return { d: d, s: r.kind === 'sack' || r.kind === 'int' ? -8 : r.kind === 'inc' ? -3 : r.kind === 'td' ? 40 : r.gain + (r.sep || 0) * 2, r: r }; });
     scored.sort(function (a, b) { return a.s - b.s; });
     if (scored[1].s - scored[0].s < 2) return null;
     var opts = [scored[0]].concat(shuffle(scored.slice(1)).slice(0, 3));

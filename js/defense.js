@@ -110,16 +110,32 @@
         if (!carrier && b.air === 'pass' && d.job !== 'blitz') {
           var ev = b.ev, tin = t - ev.t, cp = ev.catchPt, dd2 = dist(d.pos, cp);
           var mine = (d.job === 'man' && d.on === ev.to) || dd2 < (d.r || 5) + 1.5;
-          var react = d.job === 'zone' && d.drop[1] >= 10 ? 0.6 : 0.4;   // deep defenders read longer before driving
-          if (tin > react) { if (mine) { target = cp; speed = d.job === 'zone' && d.drop[1] >= 10 ? 5.8 : 6.4; } else if (tin > 0.7) { target = cp; speed = 5; } }
+          var react = d.job === 'zone' && d.drop[1] >= 10 ? 0.65 : 0.5;   // deep defenders read longer before driving
+          if (tin > react) { if (mine) { target = cp; speed = d.job === 'zone' && d.drop[1] >= 10 ? 5.4 : 5.8; } else if (tin > 0.7) { target = cp; speed = 5; } }
         }
         var np = clampX(moveTo(d.pos, target, speed * DT));
+        if (passEv && b.air === 'pass' && b.ev === passEv && d.nearT == null && dist(np, passEv.catchPt) < 1.0) d.nearT = t;
         if (d.job !== 'blitz' && t < firstEx && np[1] < 0.3) np[1] = 0.3;  // can't cross LOS before an exchange
         d.pos = np;
       });
       frames.push(defs.map(function (d) { return d.pos.slice(); }));
+      // ball in the air: a cover player sitting in the throwing lane (short of the catch spot) picks it off
+      if (!result && passEv && b.air === 'pass' && b.ev === passEv && (t - passEv.t) / passEv.flight > 0.35 && dist(b.pt, passEv.catchPt) > 2) {
+        for (var q = 0; q < defs.length; q++) {
+          if ((defs[q].job === 'zone' || defs[q].job === 'spy') && dist(defs[q].pos, b.pt) < 0.45) { result = { kind: 'int', t: t, pt: b.pt.slice(), gain: 0, by: defs[q].id, why: 'lane' }; break; }
+        }
+      }
       if (passEv && sep == null && t >= passEv.catchT) {
-        sep = Infinity; defs.forEach(function (d) { sep = Math.min(sep, dist(d.pos, passEv.catchPt)); });
+        sep = Infinity; var close = null;
+        defs.forEach(function (d) { var dd = dist(d.pos, passEv.catchPt); if (dd < sep) { sep = dd; close = d; } });
+        if (!result && close) {
+          var cp = passEv.catchPt, fp = passEv.from_pt;
+          var under = dist(close.pos, fp) < dist(cp, fp) - 0.3;                  // between the thrower and the catch
+          var early = close.nearT != null && close.nearT <= passEv.catchT - 0.6;  // was waiting at the spot well before the receiver
+          var hawk = close.job !== 'blitz';
+          if (sep < 0.5 && hawk && (under || early)) result = { kind: 'int', t: t, pt: cp.slice(), gain: 0, by: close.id };
+          else if (sep < 0.7 || (sep < 1.2 && under)) result = { kind: 'inc', t: t, pt: cp.slice(), gain: 0, by: close.id };
+        }
       }
 
       if (!result && t > E.SNAP_T && t <= sim.tEnd) {
@@ -143,7 +159,7 @@
       result = { kind: 'open', t: sim.tEnd, pt: bs.pt, gain: bs.pt[1] };
       if (goalY != null && bs.pt[1] >= goalY) result.kind = 'td';
     }
-    if (passEv && result) { result.sep = sep; result.caught = result.kind !== 'sack' && result.t >= passEv.catchT - 0.01; }
+    if (passEv && result) { result.sep = sep; result.caught = result.kind !== 'sack' && result.kind !== 'inc' && result.kind !== 'int' && result.t >= passEv.catchT - 0.01; }
     function at(t) {
       var i = Math.max(0, Math.min(frames.length - 1, Math.round((t - sim.tStart) / DT)));
       return defs.map(function (d, k) { return { id: d.id, label: d.label || d.id, job: d.job, pt: frames[i][k], d: d }; });
@@ -168,7 +184,7 @@
       if (d.job === 'zone') {
         var r = d.r || 6;
         s += '<ellipse cx="' + sx(d.drop[0]) + '" cy="' + sy(d.drop[1]) + '" rx="' + r * 20 + '" ry="' + r * 14 + '" class="zone-area' + faint + '" fill="' + c + '" stroke="' + c + '"/>';
-        if (d.zone && !opts.faint) s += '<text x="' + sx(d.drop[0]) + '" y="' + (sy(d.drop[1]) + r * 14 - 6) + '" class="zone-name">' + d.zone + '</text>';
+        if (d.zone) s += '<text x="' + sx(d.drop[0]) + '" y="' + (sy(d.drop[1]) + r * 14 - 6) + '" class="zone-name">' + d.zone + '</text>';
         if (dist(d.start, d.drop) > 0.6) s += '<line x1="' + sx(d.start[0]) + '" y1="' + sy(d.start[1]) + '" x2="' + sx(d.drop[0]) + '" y2="' + sy(d.drop[1]) + '" class="drop-line' + faint + '" stroke="' + c + '"/>';
       } else if (d.job === 'blitz') {
         s += '<line x1="' + sx(d.start[0]) + '" y1="' + sy(d.start[1]) + '" x2="' + sx(qb[0]) + '" y2="' + sy(qb[1] + 1) + '" class="blitz-line' + faint + '" stroke="' + c + '"/>';
@@ -213,7 +229,7 @@
   function resultSVG(res, t) {
     if (!res || t < res.t) return '';
     var x = sx(res.pt[0]), y = sy(res.pt[1]);
-    var txt = res.kind === 'flag' ? 'FLAG ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) : res.kind === 'sack' ? 'SACK ' + res.gain.toFixed(0) : res.kind === 'td' ? 'TOUCHDOWN' : '';
+    var txt = res.kind === 'flag' ? 'FLAG ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) : res.kind === 'sack' ? 'SACK ' + res.gain.toFixed(0) : res.kind === 'td' ? 'TOUCHDOWN' : res.kind === 'int' ? 'INTERCEPTED' : res.kind === 'inc' ? 'INCOMPLETE' : '';
     if (!txt) return '';
     var tx = Math.max(60, Math.min(E.sx(W) - 60, x));
     return '<g class="result ' + res.kind + '"><circle cx="' + x + '" cy="' + y + '" r="18"/><text x="' + tx + '" y="' + (y - 24) + '">' + txt + '</text></g>';
@@ -222,6 +238,8 @@
   function describe(res) {
     if (!res) return '';
     var pre = '';
+    if (res.kind === 'int') return 'Intercepted by ' + res.by + ' — ' + (res.why === 'lane' ? 'he was sitting in the throwing lane' : 'he got to the spot before the receiver') + '. Look elsewhere or throw it away.';
+    if (res.kind === 'inc') return 'Incomplete — ' + res.by + ' breaks it up (' + res.sep.toFixed(1) + ' yds separation). Covered; try the next read.';
     if (res.caught && res.sep != null) pre = (res.sep < 1.2 ? 'Contested catch (' : res.sep < 3 ? 'Tight window (' : 'Open (') + res.sep.toFixed(1) + ' yds separation) · ';
     return pre + describe2(res);
   }

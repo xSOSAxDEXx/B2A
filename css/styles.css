@@ -298,7 +298,7 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
 
 /* defense drawing */
 .zone-area { fill-opacity: .13; stroke-opacity: .5; stroke-width: 1.5; stroke-dasharray: 5 4; }
-.zone-area.faint { fill-opacity: .06; stroke-opacity: .25; }
+.zone-area.faint { fill-opacity: .1; stroke-opacity: .85; stroke-width: 2; }
 .zone-name { fill: #a5f3fc; font: 700 10px Inter; text-anchor: middle; letter-spacing: .04em; }
 .drop-line, .man-line, .blitz-line, .spy-line { stroke-width: 2; stroke-dasharray: 3 4; opacity: .75; }
 .blitz-line { stroke-dasharray: 8 4; stroke-width: 2.5; }
@@ -659,3 +659,13 @@ body.cloud .local-only-inline { display: none; }
 .help-dl dd { margin: 4px 0 0 0; color: var(--text); line-height: 1.5; }
 .help-table td:first-child { white-space: nowrap; width: 80px; }
 .help-body .lg-item { margin-right: 8px; }
+
+/* zones readable in offense view; pass outcomes */
+.zone-area { fill-opacity: .16; stroke-opacity: .9; stroke-width: 2.2; stroke-dasharray: 7 5; }
+.zone-area.faint { opacity: 1; fill-opacity: .09; stroke-opacity: .75; stroke-width: 2; }
+.zone-name { fill: #dcff9e; font-size: 11px; paint-order: stroke; stroke: #0c0620; stroke-width: 3px; }
+.result.int circle { stroke: #ff2e63; } .result.int text { fill: #ff2e63; }
+.result.inc circle { stroke: #cbd5e1; stroke-dasharray: 4 3; } .result.inc text { fill: #e2e8f0; }
+#v-throw-wrap { min-width: 190px; }
+.throw-note { display: flex; gap: 8px; align-items: center; border-color: #2ee6ff55; }
+.throw-note .vw-icon { width: 20px; height: 20px; flex: none; }

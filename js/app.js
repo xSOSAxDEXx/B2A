@@ -119,7 +119,7 @@
   }
 
   /* ================= PLAYS TAB ================= */
-  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {} };
+  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {} };
 
   var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([['team', 'Team plays (designed)'], ['t:pass', '— Pass plays'], ['t:run', '— Runs'], ['t:vs-blitz', '— vs blitz'], ['t:vs-man', '— vs man'], ['t:vs-zone', '— vs zone'], ['t:third-down', '— 3rd down'], ['t:short-yardage', '— Short yardage']]);
   var DEF_FILTERS = [['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'], ['t:no-blitz', 'No blitz'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']];
@@ -202,7 +202,46 @@
     $('#v-result').innerHTML = a.dsim ? (r ? '<b>' + esc(D.describe(r)) + '</b>' : 'Run it to see how this matchup plays out') + ' <span class="muted">· simplified simulation</span>' : '';
   });
 
-  function currentOff() { var p = findOff(view.id) || offPlays()[0]; return view.flip ? E.flipPlay(p) : p; }
+  /* ---- "QB throws to": re-target a straight QB pass play without opening the designer ---- */
+  function canRetarget(p) { return p.events.length === 1 && p.events[0].type === 'pass' && p.events[0].from === 'QB'; }
+  function brkFor(p, r) { var pts = p.players[r] && p.players[r].route && p.players[r].route.pts; return pts && pts.length > 1 && pts[0][1] < 1 ? 1 : 0; }
+  function retarget(p, r) {
+    if (!r || r === p.events[0].to) return p;
+    var q = E.clone(p); q.events = [{ type: 'pass', from: 'QB', to: r, brk: brkFor(p, r) }]; return q;
+  }
+  function throwTargets(p) {   // receivers who run a route that can legally be caught past the LOS
+    return ['X', 'Y', 'Z', 'C'].filter(function (r) {
+      var pts = p.players[r] && p.players[r].route && p.players[r].route.pts; if (!pts || !pts.length) return false;
+      var ev = E.buildSim(retarget(p, r)).P.events[0]; return ev.catchPt && ev.catchPt[1] > 0.5;
+    });
+  }
+  function scoreRes(r) { return r.kind === 'sack' || r.kind === 'int' ? -9 : r.kind === 'inc' ? -4 : r.kind === 'td' ? 40 : r.gain + (r.sep || 0) * 2; }
+  function bestTarget(p, def) {
+    var best = null;
+    throwTargets(p).forEach(function (r) { var s = scoreRes(D.simulate(def, E.buildSim(retarget(p, r))).result); if (!best || s > best.s) best = { r: r, s: s }; });
+    return best && best.r;
+  }
+  function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return d && view.flip ? D.flipDefense(d) : d; }
+  function throwChoice(p) {
+    var c = view.throwTo[view.id] || '';
+    if (c === 'best') { var d = vsDefense(); return d ? bestTarget(p, d) : ''; }
+    return c;
+  }
+  function fillThrowSelect(p) {
+    var wrap = $('#v-throw-wrap'), sel = $('#v-throw');
+    var ok = view.side === 'off' && canRetarget(p), tg = ok ? throwTargets(p) : [];
+    wrap.classList.toggle('hidden', !ok || tg.length < 2);
+    if (!ok) return;
+    var drawn = p.events[0].to, d = vsDefense(), c = view.throwTo[view.id] || '';
+    if (c === 'best' && !d) c = '';
+    sel.innerHTML = '<option value="">' + drawn + ' — as drawn</option>' +
+      tg.filter(function (r) { return r !== drawn; }).map(function (r) { return '<option value="' + r + '">' + r + ' — ' + esc(E.ROLE_NAMES[r] || r) + '</option>'; }).join('') +
+      (d ? '<option value="best">Best read vs ' + esc(d.name) + ' → ' + bestTarget(p, d) + '</option>' : '');
+    sel.value = c;
+  }
+  $('#v-throw').addEventListener('change', function (e) { view.throwTo[view.id] = e.target.value; select(view.id); });
+
+  function currentOff() { var p = findOff(view.id) || offPlays()[0]; p = view.flip ? E.flipPlay(p) : p; return canRetarget(p) ? retarget(p, throwChoice(p)) : p; }
   function currentDef() { var d = findDef(view.defId) || defPlays()[0]; return view.flip ? D.flipDefense(d) : d; }
 
   function fillVsSelect() {
@@ -240,9 +279,9 @@
     var base, info = '';
     if (side === 'off') {
       base = findOff(id); if (!base) { base = offPlays()[0]; view.id = base.id; }
+      fillThrowSelect(view.flip ? E.flipPlay(base) : base);
       var p = currentOff();
-      var def = view.vsOff ? findDef(view.vsOff) : null;
-      if (def && view.flip) def = D.flipDefense(def);
+      var def = vsDefense();
       viewer.load(p, def, 'off');
       var f = E.FORMATIONS[p.formation] || {};
       $('#v-name').textContent = base.num + ' · ' + p.name;
@@ -250,6 +289,7 @@
       $('#v-meta').textContent = (f.name || '') + (view.flip ? ' (flipped)' : '') + ' · ' + (isRun(p) ? 'Run' : 'Pass') + ' · ' + where + (CAT_NAME[p.cat] ? ' · ' + CAT_NAME[p.cat] : '');
       var res = E.validate(p);
       var lg = $('#v-legal'); lg.className = 'legal ' + (res.legal ? 'ok' : 'bad'); lg.textContent = res.legal ? '✓ LEGAL' : '✕ RULE ISSUE';
+      if (p.events[0] && base.events[0] && p.events[0].to !== base.events[0].to) info += '<div class="card span2 throw-note">' + ICON('target') + ' <span>Showing the throw to <b>' + p.events[0].to + '</b> instead of ' + base.events[0].to + ' (as drawn). This only changes the view — the saved play is unchanged.</span></div>';
       info += '<div class="card"><h3>Progression</h3><ol class="reads">' + ((p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>') + '</ol></div>';
       info += '<div class="card"><h3>Coaching points</h3><p>' + esc(p.notes || '—') + '</p>' + (p.events.some(function (e) { return e.brk != null; }) ? '<p class="hint">● Yellow dot = where the QB lets it go (receiver’s break). Dotted tail = run after the catch.</p>' : '') + '</div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'off') + '</div>';
@@ -260,6 +300,7 @@
       var d = currentDef();
       var offId = view.vsDef[view.defId] || base.vs;
       var off = findOff(offId) || B2A_PLAYS[0];
+      $('#v-throw-wrap').classList.add('hidden');
       viewer.load(view.flip ? E.flipPlay(off) : off, d, 'def');
       $('#v-name').textContent = base.num + ' · ' + d.name;
       $('#v-meta').textContent = d.front + ' · vs ' + off.name + (view.flip ? ' (flipped)' : '');
@@ -304,7 +345,7 @@
   scrub.addEventListener('input', function () { scrub._drag = true; viewer.seek(scrub.value / 1000); scrub._drag = false; });
   $('#v-flip').addEventListener('click', function (e) { view.flip = !view.flip; e.currentTarget.classList.toggle('on', view.flip); select(view.side === 'off' ? view.id : view.defId); });
   $('#v-edit').addEventListener('click', function () {
-    var base = findOff(view.id), p = E.clone(view.flip ? E.flipPlay(base) : base);
+    var base = findOff(view.id), p = E.clone(currentOff());   // keeps the flip and the chosen throw target
     if (!base.custom) { delete p.id; p.name = p.name + ' (copy)'; }
     delete p.num; delete p.shared; delete p.flipped; delete p.custom;
     APP.openDesigner(p);

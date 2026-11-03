@@ -24,7 +24,7 @@
     { id: 'player', icon: 'bolt', title: 'Player quick-start (do this before every game)', body:
       '<ol>' +
       '<li><b>Game Day</b> → check the opponent and <b>this week’s game plan</b>.</li>' +
-      '<li><b>Plays</b> → open each play in the plan and tap <b>▶ Run play</b>. Watch <i>your</i> letter. Try the <b>Against defense</b> dropdown to see how it plays out vs different coverages.</li>' +
+      '<li><b>Plays</b> → open each play in the plan and tap <b>▶ Run play</b>. Watch <i>your</i> letter. Try the <b>Against defense</b> dropdown to see how it plays out vs different coverages, and <b>QB throws to</b> to see what happens if the ball goes to another receiver (pick <i>Best read</i> to let it find the open man).</li>' +
       '<li>Look at the <b>Who’s playing it</b> card on each play to see your spot.</li>' +
       '<li><b>Quiz</b> → <b>Quiz me on my spots</b> → pick your name. It only asks about the spots you’re assigned this week.</li>' +
       '<li><b>Roster</b> → tap your own card to update your positions, strengths and weaknesses.</li>' +
@@ -46,11 +46,11 @@
       '<li><b>Circles</b> are our offense: <b>QB</b> gold, <b>C</b> white, <b>X</b> blue, <b>Y</b> pink, <b>Z</b> purple. The line from each is their route; a thick line is the ball carrier on a run.</li>' +
       '<li><b>Yellow dot</b> on a route = where the QB lets the ball go (the receiver’s break). <b>Yellow circle</b> = where it’s caught. <b>Dotted tail</b> = run after the catch.</li>' +
       '<li>Dashed line behind a player = <b>pre-snap motion</b>.</li>' +
-      '<li><b>Defense:</b> ' + (A.D && A.D.legendHTML ? A.D.legendHTML() : '') + '. Shaded areas are each zone defender’s area.</li>' +
+      '<li><b>Defense:</b> ' + (A.D && A.D.legendHTML ? A.D.legendHTML() : '') + '. Lime dashed ovals are each zone defender’s area, labeled with the zone name.</li>' +
       '<li><b>SC / WC</b> = strong-side / weak-side corner (strong side has 2 receivers). They show as <b>C</b> vs trips or a balanced set. <b>B</b> = blitzer, <b>M</b> = middle, <b>S / FS</b> = safety, <b>N</b> = nickel on the slot.</li>' +
       '<li><b>Blue line</b> = line of scrimmage. <b>Pink dashed line</b> = 7-yard blitz line. <b>Orange shading</b> = no-run zone. <b>Yellow line</b> = midfield (1st down).</li>' +
       '<li>The <b>QB clock</b> (top right) counts the 7 seconds; it shows <b>OFF</b> after a handoff. <b>PRESSURE</b> flashes when the blitzer is close.</li>' +
-      '<li>Results after a play (FLAG +8, SACK, TOUCHDOWN, separation) come from a <b>simplified simulation</b> — a guide, not a guarantee.</li>' +
+      '<li><b>INTERCEPTED</b> = a defender undercut the throw or beat the receiver to the spot. <b>INCOMPLETE</b> = the receiver was covered and the pass got broken up — check the next read.</li><li>Results after a play (FLAG +8, SACK, TOUCHDOWN, INCOMPLETE, INTERCEPTED, separation) come from a <b>simplified simulation</b> — a guide, not a guarantee.</li>' +
       '</ul>' },
 
     { id: 'coach', icon: 'shield', title: 'Coach & editor: running game day', staff: true, body:
