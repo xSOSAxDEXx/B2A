@@ -19,7 +19,8 @@
     trips: { name: 'Trips Right', C: [CX, 0], QB: [CX, -5], X: [23.5, 0], Z: [20, -1], Y: [16.5, -1] },
     bunch: { name: 'Bunch Right', C: [CX, 0], QB: [CX, -5], Z: [20, 0], Y: [18.5, -1.5], X: [21.5, -1.5] },
     gun: { name: 'Gun with Back', C: [CX, 0], QB: [CX, -5], X: [2, 0], Y: [15, -5], Z: [23, 0] },
-    stack: { name: 'Stack Left', C: [CX, 0], QB: [CX, -5], X: [4, 0], Y: [4, -2], Z: [22, 0] }
+    stack: { name: 'Stack Left', C: [CX, 0], QB: [CX, -5], X: [4, 0], Y: [4, -2], Z: [22, 0] },
+    stackR: { name: 'Stack Right', C: [CX, 0], QB: [CX, -5], X: [2, 0], Y: [21, 0], Z: [21, -2] }
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -48,7 +49,7 @@
       pl.route = { pts: rt.pts || [], delay: rt.delay != null ? rt.delay : (r === 'QB' ? 0.35 : 0), speed: rt.speed || DEFAULT_SPEED[r] };
       p.players[r] = pl;
     });
-    p.events = (p.events || []).slice().sort(function (a, b) { return a.t - b.t; });
+    p.events = (p.events || []).map(function (e) { return clone(e); });
     p.tags = p.tags || [];
     return p;
   }
@@ -75,33 +76,66 @@
       mSpd = m.speed || 5;
       mDur = plen(mPath) / mSpd;
     }
-    function pos(role, t) {
-      var pl = P.players[role];
-      var start = pl.start;
-      if (m && role === m.player) {
-        if (t < 0) return polyAt(mPath, Math.max(0, (t + mDur) * mSpd));
-        start = mPath[mPath.length - 1];
-      }
-      var r = pl.route;
-      if (t <= r.delay || !r.pts.length) return start.slice();
-      return polyAt([start].concat(r.pts), (t - r.delay) * r.speed);
-    }
+    function routeStart(role) { return (m && role === m.player) ? mPath[mPath.length - 1] : P.players[role].start; }
     function routeEnd(role) {
       var pl = P.players[role];
-      var start = (m && role === m.player) ? mPath[mPath.length - 1] : pl.start;
-      return pl.route.delay + plen([start].concat(pl.route.pts)) / pl.route.speed;
+      return pl.route.delay + plen([routeStart(role)].concat(pl.route.pts)) / pl.route.speed;
     }
-    // ball flights
+    var yac = {};  // role -> { from: t, path: [...] } run-after-catch
+    function pos(role, t) {
+      var pl = P.players[role];
+      if (m && role === m.player && t < 0) return polyAt(mPath, Math.max(0, (t + mDur) * mSpd));
+      var start = routeStart(role), r = pl.route;
+      if (t <= r.delay || !r.pts.length) return start.slice();
+      var y = yac[role];
+      if (y && t > y.from) return polyAt(y.path, (t - y.from) * r.speed);
+      return polyAt([start].concat(r.pts), (t - r.delay) * r.speed);
+    }
+    function timeToPoint(role, idx) {
+      var pl = P.players[role], pts = [routeStart(role)].concat(pl.route.pts.slice(0, idx + 1));
+      return pl.route.delay + plen(pts) / pl.route.speed;
+    }
+    // Ball timing. Passes with "brk" are thrown the moment the receiver hits that route point (his break),
+    // as long as the passer has had the ball long enough to set; the ball then meets him in stride.
+    var ready = SNAP_T + 0.4;
     P.events.forEach(function (e) {
+      if (e.type === 'pass' && e.brk != null && P.players[e.to].route.pts.length) {
+        var bi = Math.min(e.brk, P.players[e.to].route.pts.length - 1);
+        e.t = Math.round(Math.max(timeToPoint(e.to, bi), ready) * 100) / 100;
+        e.onBreak = true;
+      } else if (e.t == null) e.t = Math.round(ready * 100) / 100;
       if (e.type === 'pass' || e.type === 'pitch') {
         var A = pos(e.from, e.t), f = 0.3, B;
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 8; i++) {
           B = pos(e.to, e.t + f);
           f = dist(A, B) / (e.type === 'pass' ? PASS_SPEED : PITCH_SPEED) + 0.05;
         }
         e.flight = f; e.from_pt = A; e.catchPt = pos(e.to, e.t + f); e.catchT = e.t + f;
+        if (e.type === 'pass') {
+          // keep running after the catch: finish the route, then turn upfield
+          var pl = P.players[e.to], end = pl.route.pts.length ? pl.route.pts[pl.route.pts.length - 1] : pl.start;
+          var prev = pl.route.pts.length > 1 ? pl.route.pts[pl.route.pts.length - 2] : routeStart(e.to);
+          var L = dist(prev, end) || 1, u = [(end[0] - prev[0]) / L, (end[1] - prev[1]) / L];
+          var p1 = u[1] >= -0.2 ? [end[0] + u[0] * 2.5, end[1] + Math.max(0, u[1]) * 2.5] : end.slice();
+          p1[0] = Math.max(0.8, Math.min(FIELD.W - 0.8, p1[0]));
+          var p2 = [p1[0], Math.min(FIELD.YMAX - 0.5, p1[1] + 6)];
+          var tEndR = routeEnd(e.to);
+          if (e.catchT < tEndR) {
+            pl.yacPts = [p1, p2];
+          } else {
+            yac[e.to] = { from: e.catchT, path: [end, p1, p2] };
+            pl.yacPts = [p1, p2];
+          }
+        }
       }
+      ready = (e.catchT || e.t) + (e.type === 'handoff' ? 0.35 : 0.5);
     });
+    // passes caught before route end just continue the route then the YAC extension
+    ROLES.forEach(function (r) {
+      var pl = P.players[r];
+      if (pl.yacPts && !yac[r]) { pl.route.pts = pl.route.pts.concat(pl.yacPts); pl.route.yacFrom = pl.route.pts.length - pl.yacPts.length; }
+    });
+    P.events.sort(function (a, b) { return a.t - b.t; });
     function ballState(t) {
       if (t < 0) return { pt: pos('C', t), holder: 'C' };
       if (t < SNAP_T) return { pt: lerp(pos('C', 0), pos('QB', SNAP_T), t / SNAP_T), holder: null, air: 'snap' };
@@ -116,12 +150,18 @@
       return { pt: pos(holder, t), holder: holder };
     }
     var tEnd = 3;
-    ROLES.forEach(function (r) { tEnd = Math.max(tEnd, routeEnd(r) + 0.3); });
+    var passEv = P.events.filter(function (e) { return e.type === 'pass'; })[0];
+    ROLES.forEach(function (r) {
+      var pl = P.players[r];
+      var len = pl.route.yacFrom != null ? plen([routeStart(r)].concat(pl.route.pts.slice(0, pl.route.yacFrom))) : plen([routeStart(r)].concat(pl.route.pts));
+      tEnd = Math.max(tEnd, pl.route.delay + len / pl.route.speed + 0.3);
+    });
     var last = P.events[P.events.length - 1];
-    if (last) tEnd = Math.max(tEnd, (last.catchT || last.t) + 1.2);
+    if (last) tEnd = Math.max(tEnd, (last.catchT || last.t) + 1.4);
+    if (passEv) tEnd = Math.min(tEnd, passEv.catchT + 1.6);
     tEnd = Math.min(tEnd, 9);
     var firstEx = P.events.length ? P.events[0].t : null;
-    return { P: P, pos: pos, ball: ballState, tStart: -mDur, tEnd: tEnd, firstExchange: firstEx, motionPath: mPath };
+    return { P: P, pos: pos, ball: ballState, tStart: -mDur, tEnd: tEnd, firstExchange: firstEx, motionPath: mPath, routeStart: routeStart, yac: yac };
   }
 
   /* Simple demonstration defense: 1 declared blitzer from 7 yds + man coverage on the 4 eligible receivers. */
@@ -279,12 +319,18 @@
       if (!pl.route.pts.length) return;
       var start = (sim.motionPath && P.motion.player === r) ? sim.motionPath[sim.motionPath.length - 1] : pl.start;
       var carrier = P.events.some(function (e) { return e.type === 'handoff' && e.to === r; });
-      s += '<polyline points="' + ptsAttr([start].concat(pl.route.pts)) + '" class="route' + (carrier ? ' carry' : '') + (r === 'QB' ? ' qbpath' : '') + '" stroke="' + COLORS[r] + '" marker-end="url(#ar-' + r + uid + ')"/>';
+      var main = pl.route.yacFrom != null ? pl.route.pts.slice(0, pl.route.yacFrom) : pl.route.pts;
+      var cls = ' class="route' + (carrier ? ' carry' : '') + (r === 'QB' ? ' qbpath' : '') + (opts.ghost ? ' ghost' : '') + '"';
+      s += '<polyline points="' + ptsAttr([start].concat(main)) + '"' + cls + ' stroke="' + COLORS[r] + '" marker-end="url(#ar-' + r + uid + ')"/>';
+      if (pl.yacPts && !opts.noYac) s += '<polyline points="' + ptsAttr([main[main.length - 1]].concat(pl.yacPts)) + '" class="yac" stroke="' + COLORS[r] + '"/>';
     });
     P.events.forEach(function (e) {
-      if (e.type === 'pass' || e.type === 'pitch') {
+      if ((e.type === 'pass' || e.type === 'pitch') && !opts.ghost) {
         s += '<line x1="' + sx(e.from_pt[0]) + '" y1="' + sy(e.from_pt[1]) + '" x2="' + sx(e.catchPt[0]) + '" y2="' + sy(e.catchPt[1]) + '" class="' + e.type + '-line" marker-end="url(#ar-ball' + uid + ')"/>';
-        if (e.type === 'pass') s += '<circle cx="' + sx(e.catchPt[0]) + '" cy="' + sy(e.catchPt[1]) + '" r="9" class="catch-ring"/>';
+        if (e.type === 'pass') {
+          s += '<circle cx="' + sx(e.catchPt[0]) + '" cy="' + sy(e.catchPt[1]) + '" r="9" class="catch-ring"/>';
+          if (e.onBreak && !opts.ghost) { var bp = sim.pos(e.to, e.t); s += '<circle cx="' + sx(bp[0]) + '" cy="' + sy(bp[1]) + '" r="5" class="break-dot"/>'; }
+        }
       }
     });
     return s;

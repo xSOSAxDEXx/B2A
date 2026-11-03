@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>B2A Flag Playbook</title>
-  <meta name="description" content="Interactive 5v5 flag football playbook for B2A — animated plays, game-day play caller, play designer with a built-in rules checker.">
+  <meta name="description" content="Interactive 5v5 flag football playbook for B2A — animated offense and defense, game-day planner, results analytics, play designer with a rules checker.">
   <meta name="theme-color" content="#0b1410">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='50' cy='50' rx='44' ry='28' fill='%238b4513' transform='rotate(-35 50 50)'/><path d='M34 50h32M40 44v12M50 44v12M60 44v12' stroke='white' stroke-width='5' transform='rotate(-35 50 50)'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,13 +16,15 @@
   <header class="top">
     <div class="brand">
       <span class="logo">B2A</span>
-      <span class="sub">Flag Playbook<small>5v5 · Adult 18+ · 3 downs</small></span>
+      <span class="sub">Flag Playbook<small id="brand-sub">5v5 · Adult 18+ · 3 downs</small></span>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="plays" role="tab">Plays</button>
-      <button class="tab" data-tab="gameday" role="tab">Game Day</button>
-      <button class="tab" data-tab="designer" role="tab">Designer</button>
-      <button class="tab" data-tab="rules" role="tab">Rules</button>
+      <button class="tab active" data-tab="plays">🏈<span>Plays</span></button>
+      <button class="tab" data-tab="gameday">📋<span>Game Day</span></button>
+      <button class="tab" data-tab="stats">📊<span>Stats</span></button>
+      <button class="tab" data-tab="quiz">🧠<span>Quiz</span></button>
+      <button class="tab" data-tab="designer">✎<span>Designer</span></button>
+      <button class="tab" data-tab="guide">📖<span>Guide</span></button>
     </nav>
   </header>
 
@@ -31,8 +33,14 @@
     <section id="tab-plays" class="panel active">
       <aside class="playlist">
         <div class="list-tools">
+          <div class="side-switch" id="side-switch"><button data-side="off" class="on">Offense</button><button data-side="def">Defense</button></div>
           <input id="search" type="search" placeholder="Search plays…" autocomplete="off">
-          <div class="chips" id="filter-chips"></div>
+          <div class="dd-row">
+            <label class="dd"><span>Category</span><select id="f-cat"></select></label>
+            <label class="dd"><span>Sort</span><select id="f-sort">
+              <option value="book">Playbook order</option><option value="success">Best success rate</option><option value="rating">Top rated</option><option value="plan">This week’s plan first</option>
+            </select></label>
+          </div>
         </div>
         <div id="play-list" class="cards"></div>
         <button id="print-btn" class="btn ghost full">🖨 Print call sheet / wristband</button>
@@ -44,7 +52,10 @@
             <h1 id="v-name">—</h1>
             <div id="v-meta" class="meta"></div>
           </div>
-          <div class="legal" id="v-legal"></div>
+          <div class="head-right">
+            <div class="rate" id="v-rate"><button data-r="1" title="Works for us">👍</button><button data-r="-1" title="We struggle with it">👎</button></div>
+            <div class="legal" id="v-legal"></div>
+          </div>
         </div>
 
         <div class="field-wrap">
@@ -53,91 +64,152 @@
             <div class="clock"><span>TIME</span><b id="v-time">0.0s</b></div>
             <div class="clock pass"><span>QB CLOCK</span><b id="v-pclock">0.0 / 7</b></div>
           </div>
+          <div class="pressure hidden" id="v-pressure">PRESSURE</div>
         </div>
+        <div class="result-line" id="v-result"></div>
 
         <div class="controls">
           <button id="v-play" class="btn primary">▶ Run play</button>
-          <button id="v-reset" class="btn">⟲ Reset</button>
+          <button id="v-reset" class="btn">⟲</button>
           <input id="v-scrub" type="range" min="0" max="1000" value="0" aria-label="Scrub timeline">
           <select id="v-speed" aria-label="Playback speed">
-            <option value="0.35">0.35×</option>
-            <option value="0.6" selected>0.6×</option>
-            <option value="1">1×</option>
+            <option value="0.35">0.35×</option><option value="0.6" selected>0.6×</option><option value="1">1×</option>
           </select>
+        </div>
+        <div class="controls">
+          <label class="dd grow"><span id="v-vs-label">Against defense</span><select id="v-vs"></select></label>
         </div>
         <div class="controls toggles">
           <button id="v-flip" class="btn toggle">⇆ Flip</button>
-          <button id="v-def" class="btn toggle">✕ Show defense</button>
+          <button id="v-plan" class="btn">＋ Game plan</button>
           <button id="v-edit" class="btn">✎ Edit copy</button>
-          <button id="v-share" class="btn">🔗 Share link</button>
+          <button id="v-share" class="btn">🔗 Share</button>
           <button id="v-del" class="btn danger hidden">🗑 Delete</button>
         </div>
 
-        <div class="info-grid">
-          <div class="card">
-            <h3>Progression</h3>
-            <ol id="v-reads" class="reads"></ol>
-          </div>
-          <div class="card">
-            <h3>Coaching points</h3>
-            <p id="v-notes"></p>
-          </div>
-          <div class="card span2">
-            <h3>Rules check</h3>
-            <ul id="v-checks" class="checks"></ul>
-          </div>
-        </div>
+        <div class="info-grid" id="v-info"></div>
       </section>
     </section>
 
     <!-- ================= GAME DAY ================= -->
     <section id="tab-gameday" class="panel">
       <div class="gd-grid">
+        <div class="card span2 matchup">
+          <div class="matchup-row">
+            <label class="dd grow"><span>Game</span><select id="gd-game"></select></label>
+            <button class="btn primary" id="gd-new-game">＋ New game</button>
+          </div>
+          <div class="new-game hidden" id="gd-new-form">
+            <label class="dd grow"><span>Opponent</span><input id="gd-opp-in" list="gd-opp-list" placeholder="Team name"><datalist id="gd-opp-list"></datalist></label>
+            <label class="dd"><span>Date</span><input id="gd-date-in" type="date"></label>
+            <button class="btn primary" id="gd-create">Create</button>
+            <button class="btn ghost" id="gd-cancel">Cancel</button>
+          </div>
+          <div class="matchup-title" id="gd-title"></div>
+          <div class="sync" id="gd-sync"></div>
+        </div>
+
+        <div class="card span2" id="gd-plan-card">
+          <h3>This week’s game plan <small>— the plays we expect to run. Publish so the whole team sees it.</small></h3>
+          <div class="plan-cols">
+            <div>
+              <div class="plan-head"><b>Offense</b>
+                <div class="plan-add"><select id="gd-add-off"></select><button class="btn small" id="gd-add-off-btn">Add</button></div></div>
+              <div class="plan-list" id="gd-plan-off"></div>
+            </div>
+            <div>
+              <div class="plan-head"><b>Defense</b>
+                <div class="plan-add"><select id="gd-add-def"></select><button class="btn small" id="gd-add-def-btn">Add</button></div></div>
+              <div class="plan-list" id="gd-plan-def"></div>
+            </div>
+          </div>
+          <label class="dd"><span>Scouting notes</span><textarea id="gd-notes" rows="2" placeholder="What they like to run, who their QB looks for…"></textarea></label>
+        </div>
+
         <div class="card board">
           <h3>Scoreboard</h3>
           <div class="score-row">
             <div class="team"><span>B2A</span><b id="sc-us">0</b>
               <div class="mini"><button data-sc="us" data-v="6">+6</button><button data-sc="us" data-v="1">+1</button><button data-sc="us" data-v="2">+2</button><button data-sc="us" data-v="-1">−1</button></div>
             </div>
-            <div class="team"><span>THEM</span><b id="sc-them">0</b>
+            <div class="team"><span id="sc-them-name">THEM</span><b id="sc-them">0</b>
               <div class="mini"><button data-sc="them" data-v="6">+6</button><button data-sc="them" data-v="1">+1</button><button data-sc="them" data-v="2">+2</button><button data-sc="them" data-v="-1">−1</button></div>
             </div>
           </div>
           <div class="half-row">
-            <div class="seg" id="half-seg"><button data-half="1" class="on">1st half</button><button data-half="2">2nd half</button></div>
-            <div class="tos"><span>Our timeouts</span><span id="to-dots"></span></div>
+            <label class="dd"><span>Half</span><select id="gd-half"><option value="1">1st half</option><option value="2">2nd half</option></select></label>
+            <div class="tos"><span>Our timeout</span><span id="to-dots"></span></div>
           </div>
-          <button id="gd-reset" class="btn ghost small">Reset game</button>
         </div>
 
         <div class="card series">
           <h3>Current series</h3>
-          <div class="downs" id="downs">
-            <button data-down="1">1st</button><button data-down="2">2nd</button><button data-down="3">3rd</button>
-          </div>
-          <div class="seg wrap" id="sit-seg">
-            <button data-sit="own">Own half</button>
-            <button data-sit="nrzmid">Inside 5 of midfield (no-run)</button>
-            <button data-sit="past">Past midfield</button>
-            <button data-sit="nrz">Inside 5 (no-run)</button>
-            <button data-sit="pat1">PAT 1-pt</button>
-            <button data-sit="pat2">PAT 2-pt</button>
-          </div>
-          <label class="check"><input type="checkbox" id="gd-blitz"> They’re sending a blitzer</label>
-          <div class="series-actions">
-            <button class="btn" id="gd-next">Next down →</button>
-            <button class="btn" id="gd-mid">Crossed midfield ✓</button>
-            <button class="btn" id="gd-td">Touchdown 🏈</button>
-            <button class="btn ghost" id="gd-new">New series</button>
+          <div class="downs" id="downs"><button data-down="1">1st</button><button data-down="2">2nd</button><button data-down="3">3rd</button></div>
+          <div class="dd-row">
+            <label class="dd grow"><span>Field position</span><select id="gd-sit">
+              <option value="own">Own half — need midfield</option>
+              <option value="nrzmid">Inside 5 of midfield (no-run)</option>
+              <option value="past">Past midfield — need TD</option>
+              <option value="nrz">Inside the 5 (no-run)</option>
+              <option value="pat1">PAT 1-pt (from the 5)</option>
+              <option value="pat2">PAT 2-pt (from the 10)</option>
+            </select></label>
+            <label class="dd"><span>Their D</span><select id="gd-blitz"><option value="0">Not blitzing</option><option value="1">Sending a blitzer</option></select></label>
           </div>
           <p class="hint" id="gd-hint"></p>
         </div>
 
-        <div class="card recs span2">
+        <div class="card span2">
           <h3>Call this <small id="gd-sub"></small></h3>
           <div id="gd-recs" class="rec-grid"></div>
         </div>
+
+        <div class="card span2 logcard">
+          <h3>Log the last play</h3>
+          <div class="dd-row">
+            <label class="dd"><span>Side</span><select id="lg-side"><option value="off">Our offense</option><option value="def">Our defense</option></select></label>
+            <label class="dd grow"><span>Play called</span><select id="lg-play"></select></label>
+            <label class="dd grow hidden" id="lg-vs-wrap"><span>Their play (optional)</span><select id="lg-vs"></select></label>
+            <label class="dd small-in"><span>Yards</span><input id="lg-yds" type="number" step="1" placeholder="±"></label>
+          </div>
+          <div class="result-btns" id="lg-results"></div>
+          <div class="log-list" id="lg-list"></div>
+        </div>
+
+        <div class="card span2 coach">
+          <h3>Coach tools</h3>
+          <p class="hint">Everything you change here is saved on this device. <b>Publish</b> commits it to the team site (data/season.json) so every player sees the game plan, ratings and stats about a minute later.</p>
+          <div class="dd-row">
+            <label class="dd grow"><span>GitHub token (fine-grained, B2A repo → Contents: read &amp; write). Stored only on this device.</span><input id="ck-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
+          </div>
+          <div class="series-actions">
+            <button class="btn primary" id="ck-publish">⬆ Publish to team</button>
+            <button class="btn" id="ck-download">⬇ Download season.json</button>
+            <button class="btn ghost danger" id="ck-discard">Discard unpublished changes</button>
+            <button class="btn ghost danger" id="ck-delgame">Delete this game</button>
+          </div>
+        </div>
       </div>
+    </section>
+
+    <!-- ================= STATS ================= -->
+    <section id="tab-stats" class="panel">
+      <div class="dd-row stats-filters">
+        <label class="dd"><span>Opponent</span><select id="st-opp"></select></label>
+        <label class="dd"><span>Side</span><select id="st-side"><option value="off">Offense</option><option value="def">Defense</option></select></label>
+      </div>
+      <div class="tiles" id="st-tiles"></div>
+      <div class="stats-grid">
+        <div class="card span2"><h3>Matchups</h3><div id="st-games"></div></div>
+        <div class="card span2"><h3>Play performance <small>(success = TD, 1st down or good gain on offense; stop, held short, sack or INT on defense)</small></h3><div id="st-plays"></div></div>
+        <div class="card"><h3>By down</h3><div id="st-down"></div></div>
+        <div class="card"><h3>Takeaways</h3><ul id="st-insights" class="insights"></ul></div>
+      </div>
+    </section>
+
+    <!-- ================= QUIZ ================= -->
+    <section id="tab-quiz" class="panel">
+      <div id="quiz-root"></div>
     </section>
 
     <!-- ================= DESIGNER ================= -->
@@ -145,14 +217,14 @@
       <div class="designer">
         <div class="d-field">
           <div class="d-toolbar">
-            <div class="seg" id="d-mode"><button data-mode="draw" class="on">✎ Draw routes</button><button data-mode="move">✥ Move players</button></div>
+            <div class="seg" id="d-mode"><button data-mode="draw" class="on">✎ Draw routes</button><button data-mode="move">✥ Move</button></div>
             <div class="role-chips" id="d-roles"></div>
           </div>
           <div class="field-wrap">
             <svg id="dfield" class="field-svg designer-svg" xmlns="http://www.w3.org/2000/svg"></svg>
             <div class="hud"><div class="clock"><span>TIME</span><b id="d-time">—</b></div></div>
           </div>
-          <p class="hint" id="d-hint">Pick a player, then tap the field to add route points. Points snap to ½ yard.</p>
+          <p class="hint" id="d-hint"></p>
           <div class="controls">
             <button class="btn" id="d-undo">↶ Undo point</button>
             <button class="btn" id="d-clear">Clear route</button>
@@ -166,16 +238,14 @@
             <h3>Play</h3>
             <label>Name <input id="d-name" type="text" placeholder="e.g. Trips Smash"></label>
             <div class="row2">
-              <label>Formation
-                <select id="d-form"></select>
-              </label>
-              <label>Field spot
-                <select id="d-ytg"><option value="">Open field</option><option value="5">5 (no-run / PAT-1)</option><option value="10">10 (PAT-2)</option><option value="m5">5 from midfield (no-run)</option></select>
-              </label>
+              <label>Formation <select id="d-form"></select></label>
+              <label>Section <select id="d-cat"></select></label>
             </div>
+            <label>Field spot
+              <select id="d-ytg"><option value="">Open field</option><option value="5">5 from goal (no-run / PAT-1)</option><option value="10">10 from goal (PAT-2)</option><option value="m5">5 from midfield (no-run)</option></select>
+            </label>
             <div class="tag-picks" id="d-tags"></div>
           </div>
-
           <div class="card">
             <h3>Selected: <span id="d-sel-name">QB</span></h3>
             <div class="row2">
@@ -183,47 +253,36 @@
               <label>Speed (yd/s) <input id="d-speed" type="number" step="0.5" min="1" max="10"></label>
             </div>
           </div>
-
           <div class="card">
             <h3>Ball exchanges <small>(snap to QB is automatic)</small></h3>
             <div id="d-events"></div>
             <button class="btn small" id="d-add-ev">+ Add handoff / pitch / pass</button>
           </div>
-
-          <div class="card">
-            <h3>Rules check</h3>
-            <ul id="d-checks" class="checks"></ul>
-          </div>
-
+          <div class="card"><h3>Rules check</h3><ul id="d-checks" class="checks"></ul></div>
           <div class="card">
             <h3>Progression &amp; notes</h3>
             <label>Reads (one per line)<textarea id="d-reads" rows="3"></textarea></label>
             <label>Coaching points<textarea id="d-notes" rows="3"></textarea></label>
           </div>
-
           <div class="d-actions">
-            <button class="btn primary" id="d-save">💾 Save to my plays</button>
+            <button class="btn primary" id="d-save">💾 Save to team plays</button>
             <button class="btn" id="d-new">New play</button>
             <button class="btn" id="d-copy">Copy JSON</button>
-            <button class="btn" id="d-export">Export all my plays</button>
-            <label class="btn file">Import… <input type="file" id="d-import" accept="application/json"></label>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ================= RULES ================= -->
-    <section id="tab-rules" class="panel">
-      <div class="rules">
-        <div class="league-banner">
-          <b>Our league:</b> 18+ adult, 5-on-5, NFL FLAG / USA Flag rules — <b>except we play with 3 downs instead of 4.</b>
-        </div>
+    <!-- ================= GUIDE ================= -->
+    <section id="tab-guide" class="panel">
+      <div class="side-switch wide" id="guide-switch"><button data-g="strategy" class="on">Strategy</button><button data-g="coverages">Coverages</button><button data-g="rules">League rules</button></div>
+      <div id="guide-strategy" class="guide-pane"></div>
+      <div id="guide-coverages" class="guide-pane hidden"></div>
+      <div id="guide-rules" class="guide-pane hidden">
+        <div class="league-banner"><b>Our league:</b> 18+ adult, 5-on-5, NFL FLAG / USA Flag rules with our house rules (highlighted).</div>
         <div class="rules-grid" id="rules-grid"></div>
-        <p class="sources">Summarized in our own words from the
-          <a href="https://nflflag.com/coaches/flag-football-rules" target="_blank" rel="noopener">NFL FLAG rules page</a> and the
-          <a href="https://resources.usafootball.com/assets/usawebsite/usa-flag-5's-rulebook_2026.1.pdf" target="_blank" rel="noopener">USA Flag 5’s Rulebook v2026.1</a>.
-          Where the two differ, it’s flagged — confirm with the league or ref before the game.</p>
       </div>
+      <p class="sources" id="guide-sources"></p>
     </section>
   </main>
 
@@ -231,8 +290,18 @@
   <div id="toast" class="toast"></div>
 
   <script src="js/engine.js"></script>
+  <script src="js/defense.js"></script>
   <script src="js/plays.js"></script>
+  <script src="js/defense-plays.js"></script>
   <script src="js/rules.js"></script>
+  <script src="js/guide.js"></script>
+  <script src="js/store.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/gameday.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/designer.js"></script>
+  <script src="js/guide-ui.js"></script>
+  <script src="js/boot.js"></script>
 </body>
 </html>
