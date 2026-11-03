@@ -39,7 +39,7 @@
       '<button class="linkbtn" id="g-reset">Forgot password?</button>');
     var g = function (id) { return document.getElementById(id); };
     function fail(e) { signInScreen(esc(friendly(e))); }
-    g('g-google').onclick = function () { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) { if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); else fail(e); }); };
+    g('g-google').onclick = function () { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) { if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') { try { sessionStorage.setItem('b2a.redirect', '1'); } catch (x) { } auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); } else fail(e); }); };
     g('g-in').onclick = function () { auth.signInWithEmailAndPassword(g('g-email').value.trim(), g('g-pass').value).catch(fail); };
     g('g-up').onclick = function () {
       auth.createUserWithEmailAndPassword(g('g-email').value.trim(), g('g-pass').value)
@@ -209,7 +209,8 @@
         firebase.initializeApp(CFG);
         auth = firebase.auth(); db = firebase.firestore();
         teamRef = db.collection('teams').doc(TEAM);
-        auth.getRedirectResult().catch(function (e) { signInScreen(esc(friendly(e))); });
+        var redirecting = false; try { redirecting = sessionStorage.getItem('b2a.redirect') === '1'; sessionStorage.removeItem('b2a.redirect'); } catch (x) { }
+        if (redirecting) auth.getRedirectResult().catch(function (e) { signInScreen(esc(friendly(e))); });
         auth.onAuthStateChanged(onUser);
       }).catch(function (e) { showGate('<h2>Couldn’t load sign-in</h2><p class="gate-msg">' + esc(e.message) + '</p><p class="hint">Check your connection and reload.</p>'); });
     });
