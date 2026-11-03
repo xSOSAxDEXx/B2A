@@ -1,6 +1,6 @@
 /* B2A defense engine: coverage simulation against any offensive play, flag-pull / sack detection, SVG drawing.
    A defensive call is a list of defenders, each with a job:
-     blitz – declared rusher from 7+ yds, rushes the QB / ball
+     blitz – declared blitzer from 7+ yds, blitzes the QB / ball
      man   – covers one offensive role (on: 'X'|'Y'|'Z'|'C'|'QB'), inside leverage, trails him
      zone  – drops to a spot (drop) and plays any receiver who enters its radius (r)
      spy   – mirrors the QB/ball at a set depth until there's a handoff or throw
@@ -10,7 +10,8 @@
   var E = root.B2A;
   var dist = E.dist, W = E.FIELD.W;
   var DT = 0.05;
-  var JOB_COLORS = { blitz: '#fb923c', man: '#f87171', zone: '#fb7185', spy: '#facc15' };
+  var JOB_COLORS = { blitz: '#ff8a1f', man: '#ff2e63', zone: '#2ee6ff', spy: '#ffe14d' };
+  var JOB_NAMES = { blitz: 'Blitzer', man: 'Man', zone: 'Zone', spy: 'Spy' };
 
   function lerp(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
   function moveTo(p, target, step) {
@@ -162,20 +163,32 @@
     return s;
   }
 
+  /* Shapes: blitzer = triangle, man = square, zone = diamond, spy = circle. */
+  function shapePath(job, x, y, r) {
+    if (job === 'blitz') return 'M' + x + ',' + (y - r * 1.15) + ' L' + (x + r * 1.1) + ',' + (y + r * 0.8) + ' L' + (x - r * 1.1) + ',' + (y + r * 0.8) + ' Z';
+    if (job === 'zone') return 'M' + x + ',' + (y - r * 1.2) + ' L' + (x + r * 1.2) + ',' + y + ' L' + x + ',' + (y + r * 1.2) + ' L' + (x - r * 1.2) + ',' + y + ' Z';
+    if (job === 'spy') return 'M' + (x - r) + ',' + y + ' a' + r + ',' + r + ' 0 1,0 ' + 2 * r + ',0 a' + r + ',' + r + ' 0 1,0 ' + -2 * r + ',0';
+    return 'M' + (x - r) + ',' + (y - r) + ' h' + 2 * r + ' v' + 2 * r + ' h' + -2 * r + ' Z';
+  }
   function defendersSVG(dsim, t, opts) {
     opts = opts || {};
     var s = '';
     dsim.at(t).forEach(function (d) {
       var x = sx(d.pt[0]), y = sy(d.pt[1]), c = JOB_COLORS[d.job];
       if (opts.marks) {
-        s += '<g class="defm"><path d="M' + (x - 8) + ',' + (y - 8) + ' L' + (x + 8) + ',' + (y + 8) + ' M' + (x + 8) + ',' + (y - 8) + ' L' + (x - 8) + ',' + (y + 8) + '" stroke="' + c + '"/></g>';
+        s += '<path d="' + shapePath(d.job, x, y, 8) + '" class="defm" stroke="' + c + '"/>';
       } else {
-        s += '<g class="defp"><rect x="' + (x - 12) + '" y="' + (y - 12) + '" width="24" height="24" rx="7" fill="' + c + '"/>' +
-          '<text x="' + x + '" y="' + (y + 4.5) + '" class="def-label">' + d.label + '</text></g>';
+        s += '<g class="defp ' + d.job + '"><path d="' + shapePath(d.job, x, y, 12) + '" fill="' + c + '"/>' +
+          '<text x="' + x + '" y="' + (y + (d.job === 'blitz' ? 7 : 4.5)) + '" class="def-label">' + d.label + '</text></g>';
       }
-      if (d.job === 'blitz' && t <= 0) s += '<text x="' + (x + 13) + '" y="' + (y - 9) + '" class="hand">✋</text>';
+      if (d.job === 'blitz' && t <= 0) s += '<g transform="translate(' + (x + 13) + ',' + (y - 22) + ')"><path d="M4 14V6a1.5 1.5 0 013 0v5M7 11V3.5a1.5 1.5 0 013 0V11M10 11V4.5a1.5 1.5 0 013 0V12M13 12V7a1.5 1.5 0 013 0v6c0 4-3 6-6 6s-5-2-6-4l-2-4a1.5 1.5 0 012.5-1.5L4 14" fill="none" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"/></g>';
     });
     return s;
+  }
+  function legendHTML() {
+    return ['blitz', 'man', 'zone'].map(function (j) {
+      return '<span class="lg-item"><svg viewBox="-14 -14 28 28" width="18" height="18"><path d="' + shapePath(j, 0, 0, 9) + '" fill="' + JOB_COLORS[j] + '"/></svg>' + JOB_NAMES[j] + (j === 'zone' ? ' (shaded area)' : '') + '</span>';
+    }).join('');
   }
 
   function resultSVG(res, t) {
@@ -183,7 +196,8 @@
     var x = sx(res.pt[0]), y = sy(res.pt[1]);
     var txt = res.kind === 'flag' ? 'FLAG ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) : res.kind === 'sack' ? 'SACK ' + res.gain.toFixed(0) : res.kind === 'td' ? 'TOUCHDOWN' : '';
     if (!txt) return '';
-    return '<g class="result ' + res.kind + '"><circle cx="' + x + '" cy="' + y + '" r="18"/><text x="' + x + '" y="' + (y - 24) + '">' + txt + '</text></g>';
+    var tx = Math.max(60, Math.min(E.sx(W) - 60, x));
+    return '<g class="result ' + res.kind + '"><circle cx="' + x + '" cy="' + y + '" r="18"/><text x="' + tx + '" y="' + (y - 24) + '">' + txt + '</text></g>';
   }
 
   function describe(res) {
@@ -199,7 +213,7 @@
     return 'Ball carrier still running at ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) + ' yds';
   }
 
-  var api = { simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
+  var api = { legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
   E.DEF = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

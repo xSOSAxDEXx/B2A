@@ -10,7 +10,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - **Stats** — record, matchups, success rate by play, by down, and takeaways — filter by opponent and offense/defense.
 - **Quiz** — pick a position (QB, C, X, Y, Z, defender, blitzer); questions come from this week's game plan: which route you run, who's the target, when the ball comes out, who's open vs a coverage, which call stops their play, your job in a coverage, and league rules.
 - **Designer** — draw plays, set the throw on a receiver's break, live rules check, save to team plays.
-- **Guide** — strategy (what wins 5v5, QB play, using the center, design principles, 3-down situations, defense, rushing & flag pulling), coverage cheat sheet, league rules & penalties.
+- **Guide** — strategy (what wins 5v5, QB play, using the center, design principles, 3-down situations, defense, blitzing & flag pulling), coverage cheat sheet, league rules & penalties.
 
 ## Sharing game plans & stats with the team
 Changes (game plans, results, ratings, team plays) save on the device that made them. The coach taps **Publish to team** in Game Day → Coach tools, which commits `data/season.json` to this repo; GitHub Pages redeploys and everyone sees it about a minute later.

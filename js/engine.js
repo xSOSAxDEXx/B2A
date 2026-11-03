@@ -46,7 +46,7 @@
       var pl = p.players[r] || {};
       pl.start = pl.start || f[r].slice();
       var rt = pl.route || {};
-      pl.route = { pts: rt.pts || [], delay: rt.delay != null ? rt.delay : (r === 'QB' ? 0.35 : 0), speed: rt.speed || DEFAULT_SPEED[r] };
+      pl.route = { sit: !!rt.sit, pts: rt.pts || [], delay: rt.delay != null ? rt.delay : (r === 'QB' ? 0.35 : 0), speed: rt.speed || DEFAULT_SPEED[r] };
       p.players[r] = pl;
     });
     p.events = (p.events || []).map(function (e) { return clone(e); });
@@ -67,73 +67,125 @@
     return p;
   }
 
+  /* Movement model: players accelerate off the line (first leg slower) and lose time at every cut
+     (sharper cut = longer plant). A track is a list of {p, t} waypoints; position is interpolated. */
+  var ACCEL_PEN = 0.28, CUT_PEN = 0.28;
+  function makeTrack(start, pts, delay, speed, opts) {
+    opts = opts || {};
+    var track = [{ p: start.slice(), t: delay }], t = delay, prevDir = null, arrive = [];
+    var all = [start].concat(pts);
+    for (var i = 1; i < all.length; i++) {
+      var a = all[i - 1], b = all[i], L = dist(a, b);
+      if (L < 1e-6) { arrive.push(t); continue; }
+      var dir = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      if (prevDir && !opts.noCuts) {
+        var cos = Math.max(-1, Math.min(1, dir[0] * prevDir[0] + dir[1] * prevDir[1]));
+        var pause = Math.min(0.38, CUT_PEN * Math.acos(cos) / (Math.PI / 2));
+        if (pause > 0.03) { t += pause; track.push({ p: a.slice(), t: t }); }
+      }
+      t += L / speed + (prevDir || opts.noAccel ? 0 : ACCEL_PEN);
+      track.push({ p: b.slice(), t: t }); arrive.push(t);
+      prevDir = dir;
+    }
+    return { track: track, arrive: arrive, end: t };
+  }
+  function trackAt(tr, t) {
+    var k = tr.track;
+    if (t <= k[0].t) return k[0].p.slice();
+    for (var i = 1; i < k.length; i++) {
+      if (t <= k[i].t) { var a = k[i - 1], b = k[i], span = b.t - a.t; return span > 0 ? lerp(a.p, b.p, (t - a.t) / span) : b.p.slice(); }
+    }
+    return k[k.length - 1].p.slice();
+  }
+  /* Where a receiver keeps running if the route ends before the ball arrives: same direction to the
+     sideline cushion, then straight upfield. */
+  function continuation(prev, end) {
+    var L = dist(prev, end) || 1, u = [(end[0] - prev[0]) / L, (end[1] - prev[1]) / L], out = [];
+    var p = end.slice(), lim = 0.8;
+    if (u[1] > -0.2) {
+      var k = 4;
+      if (u[0] < 0) k = Math.min(k, (p[0] - lim) / -u[0]); else if (u[0] > 0) k = Math.min(k, (FIELD.W - lim - p[0]) / u[0]);
+      if (k > 0.3) { p = [p[0] + u[0] * k, p[1] + u[1] * k]; out.push(p.slice()); }
+    }
+    out.push([p[0], Math.min(FIELD.YMAX - 0.5, p[1] + 7)]);
+    return out;
+  }
+  function isSit(rt, start) {
+    if (rt.sit) return true;
+    var all = [start].concat(rt.pts), n = all.length; if (n < 3) return false;
+    return all[n - 1][1] - all[n - 2][1] < -0.2;   // last leg comes back toward the QB: curl / hitch / comeback
+  }
+
   function buildSim(play) {
     var P = normalizePlay(play);
     var m = P.motion && P.motion.pts && P.motion.pts.length ? P.motion : null;
     var mPath = null, mDur = 0, mSpd = 0;
-    if (m) {
-      mPath = [P.players[m.player].start].concat(m.pts);
-      mSpd = m.speed || 5;
-      mDur = plen(mPath) / mSpd;
-    }
+    if (m) { mPath = [P.players[m.player].start].concat(m.pts); mSpd = m.speed || 5; mDur = plen(mPath) / mSpd; }
     function routeStart(role) { return (m && role === m.player) ? mPath[mPath.length - 1] : P.players[role].start; }
-    function routeEnd(role) {
-      var pl = P.players[role];
-      return pl.route.delay + plen([routeStart(role)].concat(pl.route.pts)) / pl.route.speed;
-    }
-    var yac = {};  // role -> { from: t, path: [...] } run-after-catch
+    var tracks = {};
+    ROLES.forEach(function (r) {
+      var rt = P.players[r].route;
+      tracks[r] = makeTrack(routeStart(r), rt.pts, rt.delay, rt.speed, { noAccel: m && r === m.player });
+    });
     function pos(role, t) {
-      var pl = P.players[role];
       if (m && role === m.player && t < 0) return polyAt(mPath, Math.max(0, (t + mDur) * mSpd));
-      var start = routeStart(role), r = pl.route;
-      if (t <= r.delay || !r.pts.length) return start.slice();
-      var y = yac[role];
-      if (y && t > y.from) return polyAt(y.path, (t - y.from) * r.speed);
-      return polyAt([start].concat(r.pts), (t - r.delay) * r.speed);
+      return trackAt(tracks[role], t);
     }
-    function timeToPoint(role, idx) {
-      var pl = P.players[role], pts = [routeStart(role)].concat(pl.route.pts.slice(0, idx + 1));
-      return pl.route.delay + plen(pts) / pl.route.speed;
+    function routeEnd(role) { return tracks[role].end; }
+    function flightTo(e, A, guessT) {
+      var f = 0.3, B;
+      for (var i = 0; i < 10; i++) { B = pos(e.to, guessT + f); f = dist(A, B) / (e.type === 'pass' ? PASS_SPEED : PITCH_SPEED) + 0.05; }
+      return f;
     }
-    // Ball timing. Passes with "brk" are thrown the moment the receiver hits that route point (his break),
-    // as long as the passer has had the ball long enough to set; the ball then meets him in stride.
-    var ready = SNAP_T + 0.4;
+    var ready = SNAP_T + 0.35;
     P.events.forEach(function (e) {
-      if (e.type === 'pass' && e.brk != null && P.players[e.to].route.pts.length) {
-        var bi = Math.min(e.brk, P.players[e.to].route.pts.length - 1);
-        e.t = Math.round(Math.max(timeToPoint(e.to, bi), ready) * 100) / 100;
-        e.onBreak = true;
-      } else if (e.t == null) e.t = Math.round(ready * 100) / 100;
-      if (e.type === 'pass' || e.type === 'pitch') {
-        var A = pos(e.from, e.t), f = 0.3, B;
-        for (var i = 0; i < 8; i++) {
-          B = pos(e.to, e.t + f);
-          f = dist(A, B) / (e.type === 'pass' ? PASS_SPEED : PITCH_SPEED) + 0.05;
+      if (e.type === 'handoff') {
+        // snap the handoff to the moment the two players are closest (within 0.5s of the authored time)
+        var bestT = e.t, bd = Infinity;
+        for (var tt = Math.max(ready - 0.2, e.t - 0.5); tt <= e.t + 0.5; tt += 0.02) {
+          var d = dist(pos(e.from, tt), pos(e.to, tt)); if (d < bd - 0.05) { bd = d; bestT = tt; }
         }
-        e.flight = f; e.from_pt = A; e.catchPt = pos(e.to, e.t + f); e.catchT = e.t + f;
-        if (e.type === 'pass') {
-          // keep running after the catch: finish the route, then turn upfield
-          var pl = P.players[e.to], end = pl.route.pts.length ? pl.route.pts[pl.route.pts.length - 1] : pl.start;
-          var prev = pl.route.pts.length > 1 ? pl.route.pts[pl.route.pts.length - 2] : routeStart(e.to);
-          var L = dist(prev, end) || 1, u = [(end[0] - prev[0]) / L, (end[1] - prev[1]) / L];
-          var p1 = u[1] >= -0.2 ? [end[0] + u[0] * 2.5, end[1] + Math.max(0, u[1]) * 2.5] : end.slice();
-          p1[0] = Math.max(0.8, Math.min(FIELD.W - 0.8, p1[0]));
-          var p2 = [p1[0], Math.min(FIELD.YMAX - 0.5, p1[1] + 6)];
-          var tEndR = routeEnd(e.to);
-          if (e.catchT < tEndR) {
-            pl.yacPts = [p1, p2];
+        e.t = Math.round(bestT * 100) / 100;
+      }
+      if (e.type === 'pass') {
+        var pl = P.players[e.to], rt = pl.route, start = routeStart(e.to);
+        var hasRoute = rt.pts.length > 0;
+        var sit = hasRoute && isSit(rt, start);
+        var all = [start].concat(rt.pts), end = all[all.length - 1], prev = all[all.length - 2] || start;
+        if (hasRoute && !sit) {
+          // keep him running through the catch: extend the route
+          var cont = continuation(prev, end);
+          tracks[e.to] = makeTrack(start, rt.pts.concat(cont), rt.delay, rt.speed, { noAccel: m && e.to === m.player });
+          tracks[e.to].contFrom = rt.pts.length;
+          pl.contPts = cont;
+        }
+        if (e.brk != null && hasRoute) {
+          if (sit) {
+            // anticipation: release so the ball arrives as he settles/turns
+            var tc = routeEnd(e.to), tt2 = tc - 0.6;
+            for (var j = 0; j < 8; j++) { var A0 = pos(e.from, tt2); tt2 = tc - (dist(A0, end) / PASS_SPEED + 0.05); }
+            e.t = Math.max(ready, tt2);
           } else {
-            yac[e.to] = { from: e.catchT, path: [end, p1, p2] };
-            pl.yacPts = [p1, p2];
+            var bi = Math.min(e.brk, rt.pts.length - 1);
+            e.t = Math.max(ready, tracks[e.to].arrive[bi] - 0.1);   // throw as he plants
           }
+          e.t = Math.round(e.t * 100) / 100; e.onBreak = true; e.sit = sit;
+        } else if (e.t == null) e.t = Math.round(ready * 100) / 100;
+        var A = pos(e.from, e.t), f = flightTo(e, A, e.t);
+        e.flight = f; e.from_pt = A; e.catchPt = pos(e.to, e.t + f); e.catchT = e.t + f;
+        if (sit || !hasRoute) {
+          // after the catch, turn upfield
+          var cp = e.catchPt, yp = [[cp[0], Math.min(FIELD.YMAX - 0.5, cp[1] + 6)]];
+          var tr = tracks[e.to];
+          tr.track = tr.track.filter(function (w) { return w.t < e.catchT; }).concat([{ p: cp.slice(), t: e.catchT }, { p: yp[0], t: e.catchT + 0.3 + 6 / rt.speed }]);
+          pl.contPts = yp;
         }
       }
-      ready = (e.catchT || e.t) + (e.type === 'handoff' ? 0.35 : 0.5);
-    });
-    // passes caught before route end just continue the route then the YAC extension
-    ROLES.forEach(function (r) {
-      var pl = P.players[r];
-      if (pl.yacPts && !yac[r]) { pl.route.pts = pl.route.pts.concat(pl.yacPts); pl.route.yacFrom = pl.route.pts.length - pl.yacPts.length; }
+      if (e.type === 'pitch') {
+        var A2 = pos(e.from, e.t), f2 = flightTo(e, A2, e.t);
+        e.flight = f2; e.from_pt = A2; e.catchPt = pos(e.to, e.t + f2); e.catchT = e.t + f2;
+      }
+      ready = (e.catchT || e.t) + (e.type === 'handoff' ? 0.35 : 0.45);
     });
     P.events.sort(function (a, b) { return a.t - b.t; });
     function ballState(t) {
@@ -151,17 +203,13 @@
     }
     var tEnd = 3;
     var passEv = P.events.filter(function (e) { return e.type === 'pass'; })[0];
-    ROLES.forEach(function (r) {
-      var pl = P.players[r];
-      var len = pl.route.yacFrom != null ? plen([routeStart(r)].concat(pl.route.pts.slice(0, pl.route.yacFrom))) : plen([routeStart(r)].concat(pl.route.pts));
-      tEnd = Math.max(tEnd, pl.route.delay + len / pl.route.speed + 0.3);
-    });
+    ROLES.forEach(function (r) { if (!P.players[r].contPts) tEnd = Math.max(tEnd, routeEnd(r) + 0.3); });
     var last = P.events[P.events.length - 1];
     if (last) tEnd = Math.max(tEnd, (last.catchT || last.t) + 1.4);
-    if (passEv) tEnd = Math.min(tEnd, passEv.catchT + 1.6);
+    if (passEv) tEnd = Math.min(tEnd, passEv.catchT + 1.5);
     tEnd = Math.min(tEnd, 9);
     var firstEx = P.events.length ? P.events[0].t : null;
-    return { P: P, pos: pos, ball: ballState, tStart: -mDur, tEnd: tEnd, firstExchange: firstEx, motionPath: mPath, routeStart: routeStart, yac: yac };
+    return { P: P, pos: pos, ball: ballState, tStart: -mDur, tEnd: tEnd, firstExchange: firstEx, motionPath: mPath, routeStart: routeStart, tracks: tracks };
   }
 
   /* Simple demonstration defense: 1 declared blitzer from 7 yds + man coverage on the 4 eligible receivers. */
@@ -258,7 +306,7 @@
 
     var exchangeFirst = ev.length && ev[0].type !== 'pass';
     if (isRun) add('info', 'Run play — illegal inside either no-run zone (5 yds before midfield or the goal line) and on 1-pt tries.');
-    if (exchangeFirst && passes.length) add('info', 'Handoff/pitch comes first: the 7-sec clock is off, but every defender can now rush.');
+    if (exchangeFirst && passes.length) add('info', 'Handoff/pitch comes first: the 7-sec clock is off, but every defender can now blitz.');
     if (((P.ytg != null && P.ytg <= 5) || (P.ytm != null && P.ytm <= 5)) && isRun) add('error', 'Run play called from inside a no-run zone.');
     if (!issues.some(function (i) { return i.level !== 'info'; })) add('ok', 'Legal under league rules.');
     return { issues: issues, isRun: isRun, legal: !issues.some(function (i) { return i.level === 'error'; }) };
@@ -304,7 +352,7 @@
       s += '<text x="' + (W - 6) + '" y="' + (sy(yl) - 4) + '" class="yd-label">' + (yl > 0 ? '+' : '') + yl + '</text>';
     }
     s += '<line x1="0" x2="' + W + '" y1="' + sy(7) + '" y2="' + sy(7) + '" class="rushline"/>';
-    s += '<text x="6" y="' + (sy(7) - 5) + '" class="rush-label">7-YD RUSH LINE</text>';
+    s += '<text x="6" y="' + (sy(7) - 5) + '" class="rush-label">7-YD BLITZ LINE</text>';
     s += '<line x1="0" x2="' + W + '" y1="' + sy(0) + '" y2="' + sy(0) + '" class="los"/>';
     s += '<text x="6" y="' + (sy(0) - 5) + '" class="los-label">LOS</text>';
     return s;
@@ -319,10 +367,14 @@
       if (!pl.route.pts.length) return;
       var start = (sim.motionPath && P.motion.player === r) ? sim.motionPath[sim.motionPath.length - 1] : pl.start;
       var carrier = P.events.some(function (e) { return e.type === 'handoff' && e.to === r; });
-      var main = pl.route.yacFrom != null ? pl.route.pts.slice(0, pl.route.yacFrom) : pl.route.pts;
+      var main = pl.route.pts;
       var cls = ' class="route' + (carrier ? ' carry' : '') + (r === 'QB' ? ' qbpath' : '') + (opts.ghost ? ' ghost' : '') + '"';
       s += '<polyline points="' + ptsAttr([start].concat(main)) + '"' + cls + ' stroke="' + COLORS[r] + '" marker-end="url(#ar-' + r + uid + ')"/>';
-      if (pl.yacPts && !opts.noYac) s += '<polyline points="' + ptsAttr([main[main.length - 1]].concat(pl.yacPts)) + '" class="yac" stroke="' + COLORS[r] + '"/>';
+      if (pl.contPts && !opts.noYac) {
+        var cpe = P.events.filter(function (e) { return e.type === 'pass' && e.to === r; })[0];
+        var from = cpe && cpe.sit ? cpe.catchPt : main[main.length - 1];
+        s += '<polyline points="' + ptsAttr([from].concat(pl.contPts)) + '" class="yac" stroke="' + COLORS[r] + '"/>';
+      }
     });
     P.events.forEach(function (e) {
       if ((e.type === 'pass' || e.type === 'pitch') && !opts.ghost) {
@@ -343,7 +395,7 @@
       defense(t).forEach(function (d) {
         var x = sx(d.pt[0]), y = sy(d.pt[1]);
         s += '<g class="def' + (d.blitz ? ' blitz' : '') + '"><path d="M' + (x - 9) + ',' + (y - 9) + ' L' + (x + 9) + ',' + (y + 9) + ' M' + (x + 9) + ',' + (y - 9) + ' L' + (x - 9) + ',' + (y + 9) + '"/>' +
-          (d.blitz && t <= 0 ? '<text x="' + (x + 12) + '" y="' + (y - 8) + '" class="hand">✋</text>' : '') + '</g>';
+          (d.blitz && t <= 0 ? '<text x="' + (x + 12) + '" y="' + (y - 8) + '" class="hand">!</text>' : '') + '</g>';
       });
     }
     ROLES.forEach(function (r) {

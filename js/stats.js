@@ -41,7 +41,7 @@
     $('#st-plays').innerHTML = rows.length ? '<table class="tbl plays"><thead><tr><th>Play</th><th>Calls</th><th>Success</th><th>Avg yds</th><th>' + (f.side === 'off' ? 'TD / TO' : 'INT') + '</th><th>Rate</th></tr></thead><tbody>' + rows.map(function (s) {
       var sr = s.calls ? s.ok / s.calls : null, r = ST.rating(s.play);
       return '<tr data-id="' + esc(s.play) + '"><td><b>' + esc(A.playName(s.play)) + '</b></td><td>' + s.calls + '</td><td><div class="sr">' + (sr == null ? '—' : bar(sr, sr >= 0.6 ? 'good' : sr < 0.4 ? 'bad' : '') + '<span>' + pct(sr) + '</span>') + '</div></td><td>' + (s.ydsN ? (s.yds / s.ydsN).toFixed(1) : '—') + '</td><td>' + (f.side === 'off' ? s.td + ' / ' + s.to : s.to) + '</td>' +
-        '<td class="rt"><button data-r="1" class="' + (r > 0 ? 'on' : '') + '">👍</button><button data-r="-1" class="' + (r < 0 ? 'on' : '') + '">👎</button></td></tr>';
+        '<td class="rt"><button data-r="1" class="' + (r > 0 ? 'on' : '') + '">' + ICON('up') + '</button><button data-r="-1" class="' + (r < 0 ? 'on' : '') + '">' + ICON('down') + '</button></td></tr>';
     }).join('') + '</tbody></table>' : '<p class="hint">Log plays in Game Day to see what works.</p>';
 
     var ents = f.side === 'off' ? off : def;

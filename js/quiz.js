@@ -5,8 +5,8 @@
   var A = window.APP, E = A.E, D = A.D, ST = A.ST, $ = A.$, $$ = A.$$, esc = A.esc;
   var root = $('#quiz-root');
   var POS = [
-    ['QB', 'Quarterback', '🎯'], ['C', 'Center', '🧲'], ['X', 'X receiver', '⚡'], ['Y', 'Y receiver / back', '⚡'], ['Z', 'Z receiver', '⚡'],
-    ['DEF', 'Defender (coverage)', '🛡'], ['BLITZ', 'Blitzer', '🏃']
+    ['QB', 'Quarterback', 'target'], ['C', 'Center', 'magnet'], ['X', 'X receiver', 'bolt'], ['Y', 'Y receiver / back', 'bolt'], ['Z', 'Z receiver', 'bolt'],
+    ['DEF', 'Defender (coverage)', 'shield'], ['BLITZ', 'Blitzer', 'blitz']
   ];
   var Q = { pos: null, src: 'plan', n: 10, list: [], i: 0, score: 0, missed: [], answered: false, anim: null };
   var LS_BEST = 'b2a.quiz.best';
@@ -39,7 +39,7 @@
       '<g class="dim-others" data-me="' + role + '">' + E.playersSVG(sim, sim.tStart, null, { showBall: false, selected: role }) + '</g></svg>';
   }
   function defJobText(d) {
-    if (d.job === 'blitz') return 'Rush the QB from 7+ yds (hand up), straight at the throwing shoulder';
+    if (d.job === 'blitz') return 'Blitz the QB from 7+ yds (hand up), straight at the throwing shoulder';
     if (d.job === 'man') return 'Man coverage on ' + d.on + ' — inside leverage, stay on his hip';
     if (d.job === 'spy') return 'Spy — mirror the ball at ' + d.start[1] + ' yds';
     var z = d.zone || 'zone';
@@ -171,16 +171,16 @@
     { who: 'off', q: 'Which player can NOT take a handoff?', a: 'The center', w: ['The QB (after giving it)', 'Any receiver', 'The Y back'] },
     { who: 'off', q: 'Teammates near the ball carrier should…', a: 'Stop and stay out of the way — no blocking or screening', w: ['Run alongside to shield him', 'Block the nearest defender', 'Hold the defender’s flag'] },
     { who: 'qb', q: 'How long does the QB have to throw or hand off?', a: '7 seconds', w: ['5 seconds', '10 seconds', 'Until the blitzer arrives'] },
-    { who: 'qb', q: 'After a handoff, the 7-second clock…', a: 'Turns off — but every defender can now rush', w: ['Resets to 7', 'Keeps running', 'Drops to 3 seconds'] },
+    { who: 'qb', q: 'After a handoff, the 7-second clock…', a: 'Turns off — but every defender can now blitz', w: ['Resets to 7', 'Keeps running', 'Drops to 3 seconds'] },
     { who: 'qb', q: 'Can the QB run the ball across the line?', a: 'Only after he gets it back on a handoff or pitch', w: ['Yes, any time', 'Only on 3rd down', 'Only in the red zone'] },
     { who: 'qb', q: 'A 1-point try is from the…', a: '5-yard line, pass only', w: ['10-yard line, run or pass', '3-yard line', '5-yard line, run or pass'] },
     { who: 'blitz', q: 'How far off the line must a blitzer start?', a: 'At least 7 yards, hand raised before the snap', w: ['5 yards', 'Anywhere if his hand is up', '10 yards'] },
-    { who: 'blitz', q: 'How many blitzers can rush on one play?', a: 'Two', w: ['One', 'Three', 'Unlimited'] },
+    { who: 'blitz', q: 'How many can blitz on one play?', a: 'Two', w: ['One', 'Three', 'Unlimited'] },
     { who: 'blitz', q: 'When can a NON-blitzer cross the line of scrimmage?', a: 'After a handoff, pitch or pass', w: ['At the snap', 'After 3 seconds', 'Never'] },
     { who: 'blitz', q: 'Where should the blitzer aim?', a: 'At the QB’s throwing shoulder', w: ['At the center', 'At the QB’s feet', 'Wide, to contain'] },
     { who: 'blitz', q: 'You reach the QB and swat the ball, then bump his arm. Result?', a: 'Roughing the passer: +10 and an automatic first down', w: ['Legal play', 'Loss of down for them', 'A sack'] },
     { who: 'def', q: 'Pulling a flag before the receiver has the ball is…', a: 'Illegal flag pull: +5 from the spot', w: ['Legal if the ball is in the air', 'A sack', 'No penalty'] },
-    { who: 'def', q: 'In zone, two receivers enter your area. You…', a: 'Split the difference and play the throw', w: ['Follow the first one deep', 'Rush the QB', 'Stay at your drop spot no matter what'] },
+    { who: 'def', q: 'In zone, two receivers enter your area. You…', a: 'Split the difference and play the throw', w: ['Follow the first one deep', 'Blitz the QB', 'Stay at your drop spot no matter what'] },
     { who: 'def', q: 'Once the ball is caught, every defender…', a: 'Takes an angle to where the carrier is going', w: ['Stays in his zone', 'Runs at where the carrier is now', 'Returns to the line'] },
     { who: 'all', q: 'How many timeouts do we get per half?', a: 'One', w: ['Two', 'Three', 'None'] }
   ];
@@ -221,7 +221,7 @@
     var g = ST.game(), hasPlan = g && (g.plan.off.length || g.plan.def.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
     root.innerHTML = '<div class="quiz-setup card"><h2>Quiz</h2><p class="hint">Pick your position. Questions come from ' + (hasPlan ? 'the <b>' + esc(g.opp) + '</b> game plan' : 'the playbook') + ' — where you go, who’s open, what to call.</p>' +
-      '<div class="pos-grid">' + POS.map(function (p) { return '<button class="pos" data-pos="' + p[0] + '"><span>' + p[2] + '</span><b>' + p[1] + '</b>' + (best[p[0]] ? '<small>Best ' + best[p[0]] + '%</small>' : '') + '</button>'; }).join('') + '</div>' +
+      '<div class="pos-grid">' + POS.map(function (p) { return '<button class="pos" data-pos="' + p[0] + '"><span>' + ICON(p[2]) + '</span><b>' + p[1] + '</b>' + (best[p[0]] ? '<small>Best ' + best[p[0]] + '%</small>' : '') + '</button>'; }).join('') + '</div>' +
       '<div class="dd-row"><label class="dd"><span>Questions from</span><select id="qz-src"><option value="plan"' + (hasPlan ? '' : ' disabled') + '>This week’s game plan' + (hasPlan ? ' (vs ' + esc(g.opp) + ')' : ' — none yet') + '</option><option value="all">Whole playbook</option></select></label>' +
       '<label class="dd"><span>Length</span><select id="qz-n"><option>5</option><option selected>10</option><option>15</option></select></label></div></div>';
     $('#qz-src').value = hasPlan ? Q.src : 'all';
@@ -264,7 +264,7 @@
     var p = Math.round(100 * Q.score / Q.list.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
     if (!best[Q.pos] || p > best[Q.pos]) { best[Q.pos] = p; try { localStorage.setItem(LS_BEST, JSON.stringify(best)); } catch (e) { } }
-    root.innerHTML = '<div class="quiz card done"><h2>' + Q.score + ' / ' + Q.list.length + ' <small>(' + p + '%)</small></h2><p>' + (p >= 90 ? 'Game ready. 🔥' : p >= 70 ? 'Solid — review the misses below.' : 'Spend some time in the Plays tab, then run it back.') + '</p>' +
+    root.innerHTML = '<div class="quiz card done"><h2>' + Q.score + ' / ' + Q.list.length + ' <small>(' + p + '%)</small></h2><p>' + (p >= 90 ? 'Game ready.' : p >= 70 ? 'Solid — review the misses below.' : 'Spend some time in the Plays tab, then run it back.') + '</p>' +
       (Q.missed.length ? '<h3>Review</h3><ul class="missed">' + Q.missed.map(function (q) { return '<li><b>' + q.prompt.replace(/<[^>]+>/g, '') + '</b><br><span class="muted">' + esc(q.explain || '') + '</span>' + (q.play ? ' <a href="#" data-open="' + esc(q.play.id) + '">Open play</a>' : '') + '</li>'; }).join('') + '</ul>' : '') +
       '<div class="series-actions"><button class="btn primary" id="qz-again">Run it back</button><button class="btn" id="qz-other">Change position</button></div></div>';
     $('#qz-again').addEventListener('click', function () { Q.list = build(); Q.i = 0; Q.score = 0; Q.missed = []; showQ(); });

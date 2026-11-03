@@ -122,7 +122,7 @@
   var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {} };
 
   var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([['team', 'Team plays (designed)'], ['t:pass', '— Pass plays'], ['t:run', '— Runs'], ['t:vs-blitz', '— vs blitz'], ['t:vs-man', '— vs man'], ['t:vs-zone', '— vs zone'], ['t:third-down', '— 3rd down'], ['t:short-yardage', '— Short yardage']]);
-  var DEF_FILTERS = [['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'], ['t:no-rush', 'No rush'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']];
+  var DEF_FILTERS = [['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'], ['t:no-blitz', 'No blitz'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']];
   function fillCatSelect() {
     var opts = view.side === 'off' ? OFF_FILTERS : DEF_FILTERS;
     $('#f-cat').innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + esc(o[1]) + '</option>'; }).join('');
@@ -165,7 +165,7 @@
     var out = '';
     if (p.custom) out += '<span class="tag custom">team</span>';
     if (inPlan(p.id, p.side === 'def' ? 'def' : 'off')) out += '<span class="tag plan">plan</span>';
-    var r = ST.rating(p.id); if (r) out += '<span class="tag ' + (r > 0 ? 'up' : 'down') + '">' + (r > 0 ? '👍' : '👎') + '</span>';
+    var r = ST.rating(p.id); if (r) out += '<span class="tag ' + (r > 0 ? 'up' : 'down') + '">' + ICON(r > 0 ? 'up' : 'down') + '</span>';
     var s = ST.playStats({ side: p.side === 'def' ? 'def' : 'off' })[p.id];
     if (s && s.calls) out += '<span class="tag stat">' + s.ok + '/' + s.calls + '</span>';
     return out + (p.tags || []).slice(0, 2).map(function (t) { return '<span class="tag ' + t + '">' + t.replace(/-/g, ' ') + '</span>'; }).join('');
@@ -262,12 +262,12 @@
       viewer.load(view.flip ? E.flipPlay(off) : off, d, 'def');
       $('#v-name').textContent = base.num + ' · ' + d.name;
       $('#v-meta').textContent = d.front + ' · vs ' + off.name + (view.flip ? ' (flipped)' : '');
-      var lg2 = $('#v-legal'); lg2.className = 'legal ok'; lg2.textContent = (d.defenders.filter(function (x) { return x.job === 'blitz'; }).length) + ' RUSH';
+      var lg2 = $('#v-legal'); lg2.className = 'legal ok'; var nb = d.defenders.filter(function (x) { return x.job === 'blitz'; }).length; lg2.textContent = nb ? nb + ' BLITZER' + (nb > 1 ? 'S' : '') : 'NO BLITZ';
       info += '<div class="card"><h3>When to call it</h3><ul class="reads">' + d.when.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>';
       info += '<div class="card"><h3>Coaching keys</h3><ul class="reads">' + d.keys.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>';
       info += '<div class="card"><h3>Strengths / weaknesses</h3><p><b class="good">+</b> ' + esc(d.strengths) + '</p><p><b class="bad">−</b> ' + esc(d.weaknesses) + '</p></div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'def') + '</div>';
-      info += '<div class="card span2 legend"><span><i style="background:' + D.JOB_COLORS.blitz + '"></i>Blitzer</span><span><i style="background:' + D.JOB_COLORS.man + '"></i>Man</span><span><i style="background:' + D.JOB_COLORS.zone + '"></i>Zone (shaded area)</span><span class="muted">Offense is faded — pick any of our plays above to test the coverage against it.</span></div>';
+      info += '<div class="card span2 legend">' + D.legendHTML() + '<span class="muted">Offense is faded — pick any of our plays above to test the coverage against it.</span></div>';
     }
     $('#v-info').innerHTML = info;
     $('#v-del').classList.toggle('hidden', !(side === 'off' && base.custom));

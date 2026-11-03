@@ -41,7 +41,7 @@
     var p = side === 'off' ? A.findOff(id) : A.findDef(id); if (!p) return '';
     var s = ST.playStats({ side: side })[id], r = ST.rating(id);
     return '<div class="plan-item" data-id="' + esc(id) + '" data-side="' + side + '"><div class="thumb">' + A.thumb(p, [-6, 16]) + '</div>' +
-      '<div class="pi-body"><b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b><span class="muted">' + (s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet') + (r ? (r > 0 ? ' · 👍' : ' · 👎') : '') + '</span></div>' +
+      '<div class="pi-body"><b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b><span class="muted">' + (s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet') + (r ? ' · ' + ICON(r > 0 ? 'up' : 'down') : '') + '</span></div>' +
       '<button class="x" data-rm="1" title="Remove">✕</button></div>';
   }
   function renderPlan() {
@@ -127,7 +127,7 @@
       if (s.blitz) { if (has('vs-blitz')) { score += 4; why.push('beats the blitz'); } if (has('quick')) score += 2; if (has('rollout')) score += 1; if (has('deep') && !has('trick')) score -= 2; }
       var st = ST.playStats({ side: 'off', opp: g ? g.opp : undefined })[p.id] || ST.playStats({ side: 'off' })[p.id];
       if (st && st.calls >= 2) { var sr = st.ok / st.calls; score += (sr - 0.5) * 4; if (sr >= 0.6) why.push(Math.round(sr * 100) + '% success'); }
-      var r = ST.rating(p.id); if (r > 0) { score += 1.5; why.push('👍'); } if (r < 0) score -= 2;
+      var r = ST.rating(p.id); if (r > 0) { score += 1.5; why.push('coach favorite'); } if (r < 0) score -= 2;
       out.push({ p: p, score: score, why: why.slice(0, 3) });
     });
     out.sort(function (a, b) { return b.score - a.score; });
@@ -186,7 +186,7 @@
     var items = g ? g.log.slice(-8).reverse() : [];
     $('#lg-list').innerHTML = items.length ? '<div class="log-head">Recent</div>' + items.map(function (l) {
       var ok = ST.resultInfo(l.side, l.result).ok;
-      return '<div class="log-item"><span class="dot ' + (ok ? 'good' : 'bad') + '"></span><span>' + (l.side === 'def' ? '🛡 ' : '🏈 ') + esc(A.playName(l.play)) + '</span><span class="muted">' + ORD[l.down || 1] + ' · ' + esc(ST.resultInfo(l.side, l.result).label) + (l.yds != null ? ' · ' + (l.yds > 0 ? '+' : '') + l.yds : '') + '</span><button class="x" data-del="' + l.id + '">✕</button></div>';
+      return '<div class="log-item"><span class="dot ' + (ok ? 'good' : 'bad') + '"></span><span>' + ICON(l.side === 'def' ? 'shield' : 'football') + ' ' + esc(A.playName(l.play)) + '</span><span class="muted">' + ORD[l.down || 1] + ' · ' + esc(ST.resultInfo(l.side, l.result).label) + (l.yds != null ? ' · ' + (l.yds > 0 ? '+' : '') + l.yds : '') + '</span><button class="x" data-del="' + l.id + '">✕</button></div>';
     }).join('') : '<p class="hint">Nothing logged for this game yet.</p>';
   }
   $('#lg-list').addEventListener('click', function (e) {

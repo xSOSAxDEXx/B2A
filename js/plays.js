@@ -23,7 +23,7 @@ var B2A_PLAYS = [
       QB: { route: { pts: [[12.5, -5.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }],
-    reads: ['C hook — if the rusher came, he’s open where the rusher left', 'X slant (throw on his 3rd step)', 'Y flat', 'Z quick out'],
+    reads: ['C hook — if the blitzer came, he’s open where the blitzer left', 'X slant (throw on his 3rd step)', 'Y flat', 'Z quick out'],
     notes: 'One-step throw. Our default call vs Cover 0 / a hand-up blitzer. X must win inside leverage on the break.'
   },
   {
@@ -43,7 +43,7 @@ var B2A_PLAYS = [
     id: 'stick', cat: 'quick', name: 'Stick', formation: 'trips', tags: ['pass', 'quick', 'third-down', 'short-yardage', 'vs-zone'],
     players: {
       X: { route: { pts: [[23.5, 6], [22.5, 18]] } },
-      Z: { route: { pts: [[20, 5.5], [19, 5.5]] } },
+      Z: { route: { pts: [[20, 5.5], [19, 5.5]], sit: true } },
       Y: { route: { pts: [[18, 0.5], [23, 2]] } },
       C: { route: { pts: [[12.5, 3], [8, 7]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -5.5]] } }
@@ -56,7 +56,7 @@ var B2A_PLAYS = [
     id: 'snag', cat: 'quick', name: 'Snag', formation: 'bunch', tags: ['pass', 'quick', 'vs-zone', 'vs-man', 'third-down'],
     players: {
       X: { route: { pts: [[22, 5], [24, 11]] } },
-      Z: { route: { pts: [[20, 5], [18.5, 5.5]] } },
+      Z: { route: { pts: [[20, 5], [18.5, 5.5]], sit: true } },
       Y: { route: { pts: [[20, 0.3], [24, 1]] } },
       C: { route: { pts: [[12.5, 5], [9, 11]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -5.5]] } }
@@ -207,12 +207,12 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 4], [6, 8]] } },
       Z: { route: { pts: [[23, 4], [19, 8]] } },
       Y: { route: { pts: [[7, 6], [7, 18]] } },
-      C: { route: { pts: [[12.5, 5], [12.5, 5.5]], delay: 0.5, speed: 5 } },
+      C: { route: { pts: [[12.5, 5], [12.5, 5.5]], delay: 0.5, speed: 5, sit: true } },
       QB: { route: { pts: [[12.5, -5.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'C', brk: 0 }],
     reads: ['C delay — settles exactly where the blitzer started', 'X slant', 'Z slant', 'Y seam'],
-    notes: 'C snaps, counts one, then sits at 5 facing the QB with hands up. When the rusher comes, that spot is empty.'
+    notes: 'C snaps, counts one, then sits at 5 facing the QB with hands up. When the blitzer comes, that spot is empty.'
   },
   {
     id: 'center-seam', cat: 'center', name: 'Center Seam', formation: 'spread', tags: ['pass', 'deep', 'cover-2', 'vs-zone'],
@@ -241,7 +241,7 @@ var B2A_PLAYS = [
     notes: 'Looks exactly like Flood Rollout. Call it after the defense has seen Flood — everyone flows right, C leaks back left.'
   },
 
-  /* ================= TRICK (handoff first: 7-sec clock off, everyone can rush) ================= */
+  /* ================= TRICK (handoff first: 7-sec clock off, everyone can blitz) ================= */
   {
     id: 'hb-pass', cat: 'trick', name: 'Halfback Pass', formation: 'gun', tags: ['pass', 'trick', 'deep'],
     players: {
@@ -283,7 +283,7 @@ var B2A_PLAYS = [
       { type: 'pass', from: 'QB', to: 'X', brk: 1 }
     ],
     reads: ['X stutter-go', 'Z post', 'C seam'],
-    notes: 'Y pitches BACK to the QB while still behind the line. After the handoff every defender can rush — get it out fast.'
+    notes: 'Y pitches BACK to the QB while still behind the line. After the handoff every defender can blitz — get it out fast.'
   },
   {
     id: 'sweep-return', cat: 'trick', name: 'Jet Return', formation: 'spread', tags: ['run', 'trick', 'perimeter'],
@@ -347,7 +347,7 @@ var B2A_PLAYS = [
     id: 'mid-sticks', cat: 'midfield', name: 'Midfield Sticks', formation: 'trips', ytm: 5, tags: ['pass', 'midfield', 'quick', 'short-yardage', 'third-down'],
     players: {
       X: { route: { pts: [[23.5, 7], [24.8, 7]] } },
-      Z: { route: { pts: [[20, 6.5], [19, 6.5]] } },
+      Z: { route: { pts: [[20, 6.5], [19, 6.5]], sit: true } },
       Y: { route: { pts: [[17, 6.5], [11, 6.5]] } },
       C: { route: { pts: [[11, 1], [5, 2]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -5.5]] } }

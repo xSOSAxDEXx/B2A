@@ -6,7 +6,7 @@
   <title>B2A Flag Playbook</title>
   <meta name="description" content="Interactive 5v5 flag football playbook for B2A — animated offense and defense, game-day planner, results analytics, play designer with a rules checker.">
   <meta name="theme-color" content="#0b1410">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='50' cy='50' rx='44' ry='28' fill='%238b4513' transform='rotate(-35 50 50)'/><path d='M34 50h32M40 44v12M50 44v12M60 44v12' stroke='white' stroke-width='5' transform='rotate(-35 50 50)'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%23ffe14d'/><stop offset='1' stop-color='%23ff2bd6'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='%23120a24'/><circle cx='50' cy='54' r='34' fill='url(%23g)'/><rect x='10' y='62' width='80' height='4' fill='%23120a24'/><rect x='10' y='72' width='80' height='6' fill='%23120a24'/><text x='50' y='60' font-family='Arial Black,Arial' font-weight='900' font-size='30' text-anchor='middle' fill='white' stroke='%232ee6ff' stroke-width='2'>B2A</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,16 +15,16 @@
 <body>
   <header class="top">
     <div class="brand">
-      <span class="logo">B2A</span>
+      <span class="logo" id="logo"></span>
       <span class="sub">Flag Playbook<small id="brand-sub">5v5 · Adult 18+ · 3 downs</small></span>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="plays">🏈<span>Plays</span></button>
-      <button class="tab" data-tab="gameday">📋<span>Game Day</span></button>
-      <button class="tab" data-tab="stats">📊<span>Stats</span></button>
-      <button class="tab" data-tab="quiz">🧠<span>Quiz</span></button>
-      <button class="tab" data-tab="designer">✎<span>Designer</span></button>
-      <button class="tab" data-tab="guide">📖<span>Guide</span></button>
+      <button class="tab active" data-tab="plays"><i class="ic" data-icon="football"></i><span>Plays</span></button>
+      <button class="tab" data-tab="gameday"><i class="ic" data-icon="clipboard"></i><span>Game Day</span></button>
+      <button class="tab" data-tab="stats"><i class="ic" data-icon="chart"></i><span>Stats</span></button>
+      <button class="tab" data-tab="quiz"><i class="ic" data-icon="brain"></i><span>Quiz</span></button>
+      <button class="tab" data-tab="designer"><i class="ic" data-icon="pen"></i><span>Designer</span></button>
+      <button class="tab" data-tab="guide"><i class="ic" data-icon="book"></i><span>Guide</span></button>
     </nav>
   </header>
 
@@ -43,7 +43,7 @@
           </div>
         </div>
         <div id="play-list" class="cards"></div>
-        <button id="print-btn" class="btn ghost full">🖨 Print call sheet / wristband</button>
+        <button id="print-btn" class="btn ghost full"><i class="ic" data-icon="print"></i>Print call sheet / wristband</button>
       </aside>
 
       <section class="viewer">
@@ -53,7 +53,7 @@
             <div id="v-meta" class="meta"></div>
           </div>
           <div class="head-right">
-            <div class="rate" id="v-rate"><button data-r="1" title="Works for us">👍</button><button data-r="-1" title="We struggle with it">👎</button></div>
+            <div class="rate" id="v-rate"><button data-r="1" title="Works for us"><i class="ic" data-icon="up"></i></button><button data-r="-1" title="We struggle with it"><i class="ic" data-icon="down"></i></button></div>
             <div class="legal" id="v-legal"></div>
           </div>
         </div>
@@ -83,8 +83,8 @@
           <button id="v-flip" class="btn toggle">⇆ Flip</button>
           <button id="v-plan" class="btn">＋ Game plan</button>
           <button id="v-edit" class="btn">✎ Edit copy</button>
-          <button id="v-share" class="btn">🔗 Share</button>
-          <button id="v-del" class="btn danger hidden">🗑 Delete</button>
+          <button id="v-share" class="btn"><i class="ic" data-icon="link"></i>Share</button>
+          <button id="v-del" class="btn danger hidden"><i class="ic" data-icon="trash"></i>Delete</button>
         </div>
 
         <div class="info-grid" id="v-info"></div>
@@ -265,7 +265,7 @@
             <label>Coaching points<textarea id="d-notes" rows="3"></textarea></label>
           </div>
           <div class="d-actions">
-            <button class="btn primary" id="d-save">💾 Save to team plays</button>
+            <button class="btn primary" id="d-save"><i class="ic" data-icon="save"></i>Save to team plays</button>
             <button class="btn" id="d-new">New play</button>
             <button class="btn" id="d-copy">Copy JSON</button>
           </div>
@@ -289,6 +289,7 @@
   <div id="print-sheet" class="print-only"></div>
   <div id="toast" class="toast"></div>
 
+  <script src="js/icons.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/defense.js"></script>
   <script src="js/plays.js"></script>
