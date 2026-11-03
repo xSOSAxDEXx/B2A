@@ -217,9 +217,9 @@
     }
 
     var exchangeFirst = ev.length && ev[0].type !== 'pass';
-    if (isRun) add('info', 'Run play — illegal inside a no-run zone and on 1-pt tries.');
+    if (isRun) add('info', 'Run play — illegal inside either no-run zone (5 yds before midfield or the goal line) and on 1-pt tries.');
     if (exchangeFirst && passes.length) add('info', 'Handoff/pitch comes first: the 7-sec clock is off, but every defender can now rush.');
-    if (P.ytg != null && P.ytg <= 5 && isRun) add('error', 'Run play called from inside the no-run zone.');
+    if (((P.ytg != null && P.ytg <= 5) || (P.ytm != null && P.ytm <= 5)) && isRun) add('error', 'Run play called from inside a no-run zone.');
     if (!issues.some(function (i) { return i.level !== 'info'; })) add('ok', 'Legal under league rules.');
     return { issues: issues, isRun: isRun, legal: !issues.some(function (i) { return i.level === 'error'; }) };
   }
@@ -250,6 +250,13 @@
       if (g <= 5) s += '<text x="6" y="' + (sy(g) + 14) + '" class="zone-label">NO-RUN ZONE</text>';
       else s += '<text x="6" y="' + (sy(5) + 14) + '" class="zone-label">NO-RUN ZONE</text>';
       s += '<line x1="0" x2="' + W + '" y1="' + sy(g) + '" y2="' + sy(g) + '" class="goal"/>';
+    }
+    if (P.ytm != null) {
+      var mm = P.ytm;
+      s += '<rect x="0" y="' + sy(mm) + '" width="' + W + '" height="' + Math.min(5, mm) * FIELD.S + '" class="norun"/>';
+      s += '<text x="6" y="' + (sy(Math.min(mm, 5)) + 14) + '" class="zone-label">NO-RUN ZONE</text>';
+      s += '<line x1="0" x2="' + W + '" y1="' + sy(mm) + '" y2="' + sy(mm) + '" class="midline"/>';
+      s += '<text x="' + W / 2 + '" y="' + (sy(mm) - 6) + '" class="mid-text">MIDFIELD · 1ST DOWN</text>';
     }
     for (var yl = -5; yl <= FIELD.YMAX; yl += 5) {
       if (yl === 0) continue;

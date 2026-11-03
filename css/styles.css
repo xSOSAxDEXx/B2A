@@ -125,6 +125,8 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
 .norun { fill: rgba(248, 113, 113, .15); }
 .zone-label { fill: #fca5a5; font: 700 10px Inter; letter-spacing: .08em; }
 .goal { stroke: #fff; stroke-width: 4; }
+.midline { stroke: #c6f432; stroke-width: 3; }
+.mid-text { fill: #c6f432; font: 800 12px Inter; letter-spacing: .12em; text-anchor: middle; }
 .route { fill: none; stroke-width: 3.2; stroke-linejoin: round; stroke-linecap: round; opacity: .95; }
 .route.carry { stroke-width: 5; }
 .route.qbpath { stroke-dasharray: 2 6; }

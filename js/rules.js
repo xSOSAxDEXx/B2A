@@ -7,16 +7,15 @@ var B2A_RULES = [
       { t: 'Crossing midfield is the only first down of a drive.' },
       { t: 'No kickoffs — coin toss winner picks offense/defense; the other side picks direction. Possession flips to start the 2nd half.' },
       { t: 'After a score or turnover on downs, the new offense starts on its own 5. Interceptions are the only change of possession that doesn’t restart at the 5.' },
-      { diff: true, t: 'Failing on downs: USA Flag gives the other team the ball at its own 5. The NFL FLAG page describes an optional “punt” (opponent starts at its 5) vs. going for it (opponent gets it at the spot). Ask the ref which one we use.' }
+      { league: true, t: '<b>Turnover on downs:</b> the other team takes over at <b>its own 5-yard line</b> (no punts).' }
     ]
   },
   {
     title: 'Field', icon: '📐',
     items: [
       { t: '70 yards long: a 50-yard field of play plus two 10-yard end zones. Line to gain is midfield.' },
-      { diff: true, t: 'Width: USA Flag says 25 yds, NFL FLAG says 30 yds. Our diagrams use 25.' },
-      { t: '<b>No-run zones</b>: the 5 yards in front of each goal line. From inside one, every play must be a pass — even if you hand off first.' },
-      { diff: true, t: 'NFL FLAG also puts a no-run zone 5 yds before midfield; USA Flag only has them at the goal lines.' }
+      { league: true, t: 'Field is <b>25 yards wide</b>.' },
+      { league: true, t: '<b>No-run zones</b>: the 5 yards before <b>midfield</b> and the 5 yards before <b>each goal line</b>. From inside one, every play must be a pass — even if you hand off first.' }
     ]
   },
   {
@@ -35,7 +34,7 @@ var B2A_RULES = [
       { t: 'Two 20-minute halves, 5-minute halftime (league play). Clock only stops for timeouts, injuries, or ref discretion.' },
       { t: 'For 18+, a pro clock (stops on incompletions, out of bounds, scores, penalties, change of possession) is recommended in the last 2 minutes of each half.' },
       { t: '30 seconds to snap after the ball is spotted — one warning, then delay of game (−5).' },
-      { diff: true, t: 'Timeouts: USA Flag = two 30-sec per half; NFL FLAG = one 60-sec per half.' },
+      { league: true, t: '<b>1 timeout per half</b> per team.' },
       { t: 'QB may spike to stop the clock with 2:00 or less — costs a down.' }
     ]
   },

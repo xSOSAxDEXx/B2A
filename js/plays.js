@@ -225,6 +225,21 @@ var B2A_PLAYS = [
     notes: 'Two handoffs, both behind the line. Y sells the sweep right before giving to Z.'
   },
 
+  /* ---------------- MIDFIELD NO-RUN ZONE ---------------- */
+  {
+    id: 'mid-sticks', name: 'Midfield Sticks', formation: 'trips', ytm: 5, tags: ['pass', 'midfield', 'quick', 'short-yardage', 'third-down'],
+    players: {
+      X: { route: { pts: [[23.5, 7], [24.8, 7]] } },
+      Z: { route: { pts: [[20, 6], [19, 6]] } },
+      Y: { route: { pts: [[17, 6.5], [11, 6.5]] } },
+      C: { route: { pts: [[11, 1], [5, 2]], delay: 0.3 } },
+      QB: { route: { pts: [[12.5, -6]] } }
+    },
+    events: [{ t: 1.6, type: 'pass', from: 'QB', to: 'Z' }],
+    reads: ['Z sit just past midfield', 'Y shallow cross past the line', 'X out at the sticks', 'C flat (check-down)'],
+    notes: 'Inside 5 of midfield = no-run zone. Every route breaks PAST the midfield line so a catch is a first down.'
+  },
+
   /* ---------------- RED ZONE / PAT ---------------- */
   {
     id: 'rz-slant-corner', name: 'RZ Slant Corner', formation: 'spread', ytg: 5, tags: ['pass', 'red-zone', 'quick'],

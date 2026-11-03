@@ -7,7 +7,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
 
   var LS_CUSTOM = 'b2a.custom.v1', LS_GAME = 'b2a.game.v1';
-  var TAGS = ['pass', 'run', 'quick', 'intermediate', 'deep', 'trick', 'vs-blitz', 'vs-man', 'vs-zone', 'third-down', 'short-yardage', 'red-zone', 'pat1', 'pat2', 'rollout', 'misdirection', 'perimeter', 'sideline'];
+  var TAGS = ['pass', 'run', 'midfield', 'quick', 'intermediate', 'deep', 'trick', 'vs-blitz', 'vs-man', 'vs-zone', 'third-down', 'short-yardage', 'red-zone', 'pat1', 'pat2', 'rollout', 'misdirection', 'perimeter', 'sideline'];
   var FORM_ORDER = Object.keys(E.FORMATIONS);
 
   function load(key, def) { try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
@@ -78,7 +78,7 @@
   $$('.tab').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
 
   /* ---------------- Plays tab ---------------- */
-  var FILTERS = [['all', 'All'], ['pass', 'Pass'], ['run', 'Run'], ['quick', 'Quick'], ['deep', 'Deep'], ['trick', 'Trick'], ['red', 'Red zone / PAT'], ['vs-blitz', 'vs Blitz'], ['mine', 'My plays']];
+  var FILTERS = [['all', 'All'], ['pass', 'Pass'], ['run', 'Run'], ['quick', 'Quick'], ['deep', 'Deep'], ['trick', 'Trick'], ['red', 'Red zone / PAT'], ['midfield', 'Midfield'], ['vs-blitz', 'vs Blitz'], ['mine', 'My plays']];
   var view = { id: B2A_PLAYS[0].id, flip: false, filter: 'all', q: '' };
 
   $('#filter-chips').innerHTML = FILTERS.map(function (f) { return '<button class="chip' + (f[0] === 'all' ? ' on' : '') + '" data-f="' + f[0] + '">' + f[1] + '</button>'; }).join('');
@@ -155,7 +155,7 @@
     viewer.load(p);
     var f = E.FORMATIONS[p.formation] || {};
     $('#v-name').textContent = (base.num ? base.num + ' · ' : '') + p.name;
-    var where = p.ytg ? (p.ytg === 5 ? 'From the 5' : 'From the ' + p.ytg) : 'Open field';
+    var where = p.ytg ? 'From the ' + p.ytg : (p.ytm ? p.ytm + ' yds from midfield' : 'Open field');
     $('#v-meta').textContent = (f.name || '') + (view.flip ? ' (flipped)' : '') + ' · ' + (isRun(p) ? 'Run' : 'Pass') + ' · ' + where;
     $('#v-reads').innerHTML = (p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>';
     $('#v-notes').textContent = p.notes || '—';
@@ -206,7 +206,8 @@
   });
 
   /* ---------------- Game Day ---------------- */
-  var game = load(LS_GAME, null) || { us: 0, them: 0, half: 1, to: { 1: [false, false], 2: [false, false] }, down: 1, sit: 'own', blitz: false };
+  var game = load(LS_GAME, null) || { us: 0, them: 0, half: 1, to: { 1: [false], 2: [false] }, down: 1, sit: 'own', blitz: false };
+  game.to = { 1: [!!(game.to && game.to[1] && game.to[1][0])], 2: [!!(game.to && game.to[2] && game.to[2][0])] };
   function saveGame() { store(LS_GAME, game); }
   var ORD = ['', '1st', '2nd', '3rd'];
 
@@ -215,10 +216,11 @@
     allPlays().forEach(function (p) {
       var tags = p.tags || [], run = isRun(p), score = 0, why = [];
       var has = function (t) { return tags.indexOf(t) >= 0; };
-      if ((g.sit === 'nrz' || g.sit === 'pat1') && run) return;
+      if ((g.sit === 'nrz' || g.sit === 'nrzmid' || g.sit === 'pat1') && run) return;
       if (!E.validate(p).legal) return;
+      if (g.sit === 'nrzmid') { if (p.ytg) score -= 3; if (has('midfield')) { score += 6; why.push('midfield design'); } if (has('quick')) { score += 2; why.push('short pass to midfield'); } if (has('short-yardage')) { score += 2; why.push('short yardage'); } if (has('third-down') && g.down === 3) { score += 3; why.push('3rd-down call'); } if (has('deep')) score -= 1; }
       if (g.sit === 'own' || g.sit === 'past') {
-        if (p.ytg) score -= 3;
+        if (p.ytg || p.ytm) score -= 3;
         if (g.down === 1) { if (has('deep')) { score += 2; why.push('shot play on 1st'); } if (has('trick')) score += 1; if (run) { score += 1; why.push('keeps D honest'); } if (has('intermediate')) score += 1; }
         if (g.down === 2) { if (has('intermediate')) { score += 2; why.push('chunk gain'); } if (run) score += 1; if (has('quick')) score += 1; }
         if (g.down === 3) {
@@ -254,7 +256,8 @@
     $$('#sit-seg button').forEach(function (b) { b.classList.toggle('on', b.dataset.sit === game.sit); });
     $('#gd-blitz').checked = game.blitz;
     var left = 3 - game.down + 1, hint;
-    if (game.sit === 'own') hint = ORD[game.down] + ' down — ' + left + ' play' + (left > 1 ? 's' : '') + ' left to cross midfield.' + (game.down === 3 ? ' Last chance: miss it and it’s a turnover on downs.' : '');
+    if (game.sit === 'nrzmid') hint = ORD[game.down] + ' down inside 5 of midfield — NO-RUN ZONE: pass plays only. ' + left + ' play' + (left > 1 ? 's' : '') + ' left to reach midfield.';
+    else if (game.sit === 'own') hint = ORD[game.down] + ' down — ' + left + ' play' + (left > 1 ? 's' : '') + ' left to cross midfield.' + (game.down === 3 ? ' Last chance: miss it and it’s a turnover on downs.' : '');
     else if (game.sit === 'past') hint = ORD[game.down] + ' down — ' + left + ' play' + (left > 1 ? 's' : '') + ' left to score.' + (game.down === 3 ? ' Score or turn it over.' : '');
     else if (game.sit === 'nrz') hint = ORD[game.down] + ' down inside the 5 — NO-RUN ZONE: pass plays only, even after a handoff.';
     else if (game.sit === 'pat1') hint = '1-point try from the 5 — pass only (no-run zone). Declare it before the snap.';
@@ -275,14 +278,14 @@
   $('#gd-blitz').addEventListener('change', function (e) { game.blitz = e.target.checked; saveGame(); renderGame(); });
   $('#gd-next').addEventListener('click', function () {
     if (game.sit === 'pat1' || game.sit === 'pat2') { game.sit = 'own'; game.down = 1; toast('Try over — defense next.'); }
-    else if (game.down >= 3) { game.down = 1; game.sit = 'own'; toast('Turnover on downs — switch to defense.'); }
+    else if (game.down >= 3) { game.down = 1; game.sit = 'own'; toast('Turnover on downs — they start at their own 5. Switch to defense.'); }
     else game.down++;
     saveGame(); renderGame();
   });
   $('#gd-mid').addEventListener('click', function () { game.sit = 'past'; game.down = 1; saveGame(); renderGame(); toast('New set of 3 downs to score.'); });
   $('#gd-td').addEventListener('click', function () { game.us += 6; game.sit = 'pat1'; game.down = 1; saveGame(); renderGame(); toast('Touchdown! Pick the 1-pt or 2-pt try.'); });
   $('#gd-new').addEventListener('click', function () { game.sit = 'own'; game.down = 1; saveGame(); renderGame(); });
-  $('#gd-reset').addEventListener('click', function () { if (!confirm('Reset score, timeouts and series?')) return; game = { us: 0, them: 0, half: 1, to: { 1: [false, false], 2: [false, false] }, down: 1, sit: 'own', blitz: false }; saveGame(); renderGame(); });
+  $('#gd-reset').addEventListener('click', function () { if (!confirm('Reset score, timeouts and series?')) return; game = { us: 0, them: 0, half: 1, to: { 1: [false], 2: [false] }, down: 1, sit: 'own', blitz: false }; saveGame(); renderGame(); });
 
   /* ---------------- Designer ---------------- */
   var D = { play: null, sel: 'QB', mode: 'draw', drag: null, anim: null };
@@ -304,7 +307,7 @@
     var p = D.play;
     $('#d-name').value = p.name || '';
     $('#d-form').value = p.formation || 'spread';
-    $('#d-ytg').value = p.ytg ? String(p.ytg) : '';
+    $('#d-ytg').value = p.ytg ? String(p.ytg) : (p.ytm ? 'm' + p.ytm : '');
     $('#d-reads').value = (p.reads || []).join('\n');
     $('#d-notes').value = p.notes || '';
     $$('#d-tags .chip').forEach(function (c) { c.classList.toggle('on', (p.tags || []).indexOf(c.dataset.tag) >= 0); });
@@ -408,7 +411,7 @@
   $('#d-name').addEventListener('input', function (e) { D.play.name = e.target.value; });
   $('#d-reads').addEventListener('input', function (e) { D.play.reads = e.target.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); });
   $('#d-notes').addEventListener('input', function (e) { D.play.notes = e.target.value; });
-  $('#d-ytg').addEventListener('change', function (e) { if (e.target.value) D.play.ytg = +e.target.value; else delete D.play.ytg; renderDesigner(); });
+  $('#d-ytg').addEventListener('change', function (e) { var v = e.target.value; delete D.play.ytg; delete D.play.ytm; if (v.charAt(0) === 'm') D.play.ytm = +v.slice(1); else if (v) D.play.ytg = +v; renderDesigner(); });
   $('#d-form').addEventListener('change', function (e) {
     var f = E.FORMATIONS[e.target.value];
     D.play.formation = e.target.value;
