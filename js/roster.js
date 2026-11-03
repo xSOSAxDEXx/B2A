@@ -50,7 +50,7 @@
     var d = def.defenders.filter(function (x) { return x.id === label; })[0], out = [];
     if (!d) return out;
     if (d.job === 'blitz') { out.push({ k: 'blitzing', why: 'blitzer' }); out.push({ k: 'speed', why: 'gets home before the throw' }); }
-    else if (d.job === 'man') { out.push({ k: 'man', why: 'man coverage on ' + d.on }); out.push({ k: 'speed', why: 'stays with ' + d.on }); if (d.on === 'C') out.push({ k: 'quick', why: 'center’s quick release' }); }
+    else if (d.job === 'man') { out.push({ k: 'man', why: 'man coverage on ' + A.D.onText(d.on) }); out.push({ k: 'speed', why: 'stays with his man' }); if (d.on === 'C') out.push({ k: 'quick', why: 'center’s quick release' }); }
     else if (d.job === 'zone') {
       out.push({ k: 'zone', why: (d.zone || 'zone') + ' zone' });
       if (d.drop[1] >= 10) out.push({ k: 'speed', why: 'deep zone — nobody behind him' }); else out.push({ k: 'flags', why: 'short zone — pulls flags after the catch' });
@@ -75,15 +75,18 @@
       if (w.indexOf(n.k) >= 0) { res.score -= 3; res.warns.push(TL[n.k] + ' is a weakness — ' + n.why); }
       else if (s.indexOf(n.k) >= 0) { res.score += 2; res.goods.push(TL[n.k]); }
     });
+    function offOk(pos) { return pos === role || (pos === 'WR' && /^[XYZ]$/.test(role)) || (/^[XYZ]$/.test(pos) && /^[XYZ]$/.test(role)); }
     if (side === 'off') {
-      var prim = p.offPos;
-      var ok = prim === role || (prim === 'WR' && /^[XYZ]$/.test(role)) || (/^[XYZ]$/.test(prim) && /^[XYZ]$/.test(role));
-      if (prim && !ok) { res.score -= (role === 'QB' || role === 'C' || prim === 'QB' || prim === 'C') ? 3 : 1; res.warns.push('Out of position — primary is ' + prim); }
-      else if (prim === role) res.score += 1;
+      var prim = p.offPos, alts = p.offAlt || [];
+      if (!prim || prim === role || (prim === 'WR' && /^[XYZ]$/.test(role))) res.score += 1;
+      else if (offOk(prim)) res.score += 0.6;
+      else if (alts.some(offOk)) { res.score += 0.3; res.goods.push('also plays ' + role); }
+      else { res.score -= (role === 'QB' || role === 'C' || prim === 'QB' || prim === 'C') ? 3 : 1; res.warns.push('Out of position — plays ' + [prim].concat(alts).join(' / ')); }
     } else {
-      var want = defPosOf(role, play);
-      if (p.defPos && p.defPos !== 'ANY' && p.defPos !== want) { res.score -= want === 'B' || p.defPos === 'B' ? 2 : 1; res.warns.push('Out of position — primary is ' + p.defPos + ', this spot is ' + want); }
-      else if (p.defPos === want) res.score += 1;
+      var want = defPosOf(role, play), dp = p.defPos, dalts = p.defAlt || [];
+      if (!dp || dp === 'ANY' || dp === want) res.score += 1;
+      else if (dalts.indexOf(want) >= 0) { res.score += 0.3; res.goods.push('also plays ' + want); }
+      else { res.score -= want === 'B' || dp === 'B' ? 2 : 1; res.warns.push('Out of position — plays ' + [dp].concat(dalts).join(' / ') + ', this spot is ' + want); }
     }
     return res;
   }
@@ -123,20 +126,34 @@
     return '<div class="trait-picks" data-name="' + name + '">' + TRAITS.map(function (t) { return '<button type="button" class="chip' + (sel.indexOf(t[0]) >= 0 ? ' on' : '') + '" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
   }
   function openForm(p) {
-    editing = p ? JSON.parse(JSON.stringify(p)) : { id: null, name: '', number: '', offPos: 'WR', defPos: 'CB', strengths: [], weaknesses: [], notes: '' };
+    editing = p ? JSON.parse(JSON.stringify(p)) : { id: null, name: '', number: '', offPos: 'WR', defPos: 'CB', offAlt: [], defAlt: [], strengths: [], weaknesses: [], notes: '' };
+    editing.offAlt = editing.offAlt || []; editing.defAlt = editing.defAlt || [];
     var f = $('#ro-form'); f.classList.remove('hidden');
     f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Name</span><input id="rf-name" value="' + esc(editing.name) + '" placeholder="Player name"></label>' +
       '<label class="dd small-in"><span>Number</span><input id="rf-num" type="number" min="0" max="99" value="' + esc(editing.number) + '"></label></div>' +
       '<div class="dd-row"><label class="dd"><span>Primary offense</span><select id="rf-off">' + OFF_POS.map(function (o) { return '<option value="' + o[0] + '"' + (editing.offPos === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label class="dd"><span>Primary defense</span><select id="rf-def">' + DEF_POS.map(function (o) { return '<option value="' + o[0] + '"' + (editing.defPos === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +
+      '<div class="alt-row"><div><div class="tr-label">Also plays · offense</div><div class="alt-picks" data-name="offAlt"></div></div><div><div class="tr-label">Also plays · defense</div><div class="alt-picks" data-name="defAlt"></div></div></div>' +
       '<div class="tr-label good">Strengths</div>' + chipPicker('strengths', editing.strengths) +
       '<div class="tr-label bad">Weaknesses</div>' + chipPicker('weaknesses', editing.weaknesses) +
       '<label class="dd"><span>Notes</span><input id="rf-notes" value="' + esc(editing.notes || '') + '" placeholder="Optional"></label>' +
       '<div class="series-actions"><button class="btn primary" id="rf-save">Save player</button><button class="btn ghost" id="rf-cancel">Cancel</button>' + (editing.id ? '<button class="btn ghost danger" id="rf-del">Remove</button>' : '') + '</div>';
+    renderAlts();
+    $('#rf-off').addEventListener('change', function (e) { editing.offPos = e.target.value; editing.offAlt = editing.offAlt.filter(function (x) { return x !== editing.offPos; }); renderAlts(); });
+    $('#rf-def').addEventListener('change', function (e) { editing.defPos = e.target.value; editing.defAlt = editing.defAlt.filter(function (x) { return x !== editing.defPos; }); renderAlts(); });
     $('#rf-name').focus();
+  }
+  var OFF_ALT = [['QB', 'QB'], ['C', 'Center'], ['X', 'X'], ['Y', 'Y'], ['Z', 'Z']], DEF_ALT = [['B', 'Blitzer'], ['CB', 'Corner'], ['M', 'Middle'], ['S', 'Safety']];
+  function renderAlts() {
+    editing.offAlt = editing.offAlt || []; editing.defAlt = editing.defAlt || [];
+    var offPrim = editing.offPos === 'WR' ? ['X', 'Y', 'Z'] : [editing.offPos];
+    $('.alt-picks[data-name="offAlt"]').innerHTML = OFF_ALT.filter(function (o) { return offPrim.indexOf(o[0]) < 0; }).map(function (o) { return '<button type="button" class="chip' + (editing.offAlt.indexOf(o[0]) >= 0 ? ' on' : '') + '" data-k="' + o[0] + '">' + o[1] + '</button>'; }).join('');
+    $('.alt-picks[data-name="defAlt"]').innerHTML = editing.defPos === 'ANY' ? '<span class="muted">Plays anywhere</span>' : DEF_ALT.filter(function (o) { return o[0] !== editing.defPos; }).map(function (o) { return '<button type="button" class="chip' + (editing.defAlt.indexOf(o[0]) >= 0 ? ' on' : '') + '" data-k="' + o[0] + '">' + o[1] + '</button>'; }).join('');
   }
   $('#ro-add').addEventListener('click', function () { openForm(null); });
   $('#ro-form').addEventListener('click', function (e) {
+    var ac = e.target.closest('.alt-picks .chip');
+    if (ac) { var arr2 = editing[ac.parentNode.dataset.name], i2 = arr2.indexOf(ac.dataset.k); if (i2 >= 0) arr2.splice(i2, 1); else arr2.push(ac.dataset.k); ac.classList.toggle('on', i2 < 0); return; }
     var c = e.target.closest('.trait-picks .chip');
     if (c) {
       var name = c.parentNode.dataset.name, other = name === 'strengths' ? 'weaknesses' : 'strengths', k = c.dataset.k;
@@ -164,7 +181,7 @@
     $('#ro-count').textContent = r.length ? '· ' + r.length + ' players' : '';
     $('#ro-list').innerHTML = r.length ? r.map(function (p) {
       return '<button class="ro-card" data-id="' + p.id + '"><span class="ro-num">' + esc(p.number || '–') + '</span><div class="ro-body"><b>' + esc(p.name) + '</b>' +
-        '<span class="muted">' + esc(p.offPos || '—') + ' · ' + esc(p.defPos || '—') + (p.notes ? ' · ' + esc(p.notes) : '') + '</span><div class="tagrow">' +
+        '<span class="muted"><b class="pos-p">' + esc(p.offPos || '—') + '</b>' + ((p.offAlt || []).length ? ' +' + esc(p.offAlt.join(' ')) : '') + ' · <b class="pos-p">' + esc(p.defPos || '—') + '</b>' + ((p.defAlt || []).length ? ' +' + esc(p.defAlt.join(' ')) : '') + (p.notes ? ' · ' + esc(p.notes) : '') + '</span><div class="tagrow">' +
         (p.strengths || []).map(function (k) { return '<span class="tag tr-good">' + esc(TL[k]) + '</span>'; }).join('') +
         (p.weaknesses || []).map(function (k) { return '<span class="tag tr-bad">' + esc(TL[k]) + '</span>'; }).join('') + '</div></div></button>';
     }).join('') : '<p class="hint">No players yet. Add the team so you can assign spots on each play.</p>';

@@ -10,7 +10,7 @@
   var E = root.B2A;
   var dist = E.dist, W = E.FIELD.W;
   var DT = 0.05;
-  var JOB_COLORS = { blitz: '#ff8a1f', man: '#ff2e63', zone: '#2ee6ff', spy: '#ffe14d' };
+  var JOB_COLORS = { blitz: '#ff8a1f', man: '#ff2e63', zone: '#b8ff2e', spy: '#ffe14d' };
   var JOB_NAMES = { blitz: 'Blitzer', man: 'Man', zone: 'Zone', spy: 'Spy' };
 
   function lerp(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
@@ -37,11 +37,30 @@
     return [recStart[0] + inside * (def.lev != null ? def.lev : 0.8), Math.max(recStart[1], 0) + cushion];
   }
 
+  /* Formation strength: which side has 2 receivers (strong), 1 (weak); trips = all 3 on one side. */
+  function strength(sim) {
+    var P = sim.P, bx = P.players.C.start[0], L = [], R = [];
+    ['X', 'Y', 'Z'].forEach(function (r) { var p = sim.pos(r, sim.tStart); (p[0] < bx ? L : R).push({ r: r, out: Math.abs(p[0] - bx) }); });
+    var strongIsLeft = L.length > R.length, strong = strongIsLeft ? L : R, weak = strongIsLeft ? R : L;
+    strong.sort(function (a, b) { return b.out - a.out; }); weak.sort(function (a, b) { return b.out - a.out; });
+    var roles = { strongOut: strong[0] && strong[0].r, strongSlot: strong[1] && strong[1].r, weakOut: weak[0] ? weak[0].r : (strong[2] && strong[2].r) };
+    return { left: strongIsLeft, trips: strong.length === 3, balanced: L.length === R.length, roles: roles };
+  }
+  var ROLE_WORDS = { strongOut: 'the strong-side outside receiver (#1)', strongSlot: 'the strong-side slot (#2)', weakOut: 'the weak-side receiver' };
+  function onText(on) { return ROLE_WORDS[on] || on; }
+  function cornerLabel(id, st) { return (id === 'SC' || id === 'WC') && (st.trips || st.balanced) ? 'C' : id; }
+
   /* Build the defense simulation against an offensive sim (from B2A.buildSim). */
   function simulate(defPlay, sim) {
-    var P = sim.P, ballX = P.players.C.start[0];
+    var P = sim.P, ballX = P.players.C.start[0], st = strength(sim);
     var defs = defPlay.defenders.map(function (d) {
       var o = E.clone(d);
+      if (o.on && st.roles[o.on] !== undefined) o.on = st.roles[o.on] || 'C';
+      if (st.left !== !!defPlay.flipped) {   // put the strong-side defenders on the offense's strong side
+        if (o.start) o.start = [W - o.start[0], o.start[1]];
+        if (o.drop) o.drop = [W - o.drop[0], o.drop[1]];
+      }
+      o.label = cornerLabel(o.id, st);
       if (o.job === 'man') o.start = manAlign(o, sim.pos(o.on, sim.tStart), ballX);
       o.pos = o.start.slice();
       return o;
@@ -213,7 +232,7 @@
     return 'Ball carrier still running at ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) + ' yds';
   }
 
-  var api = { legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
+  var api = { strength: strength, onText: onText, cornerLabel: cornerLabel, legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
   E.DEF = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

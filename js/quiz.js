@@ -40,7 +40,7 @@
   }
   function defJobText(d) {
     if (d.job === 'blitz') return 'Blitz the QB from 7+ yds (hand up), straight at the throwing shoulder';
-    if (d.job === 'man') return 'Man coverage on ' + d.on + ' — inside leverage, stay on his hip';
+    if (d.job === 'man') return 'Man coverage on ' + D.onText(d.on) + ' — inside leverage, stay on his hip';
     if (d.job === 'spy') return 'Spy — mirror the ball at ' + d.start[1] + ' yds';
     var z = d.zone || 'zone';
     return 'Zone: ' + z + ' — drop to ' + Math.round(d.drop[1]) + ' yds ' + (d.drop[0] < 9 ? 'on the left' : d.drop[0] > 16 ? 'on the right' : 'in the middle');
@@ -159,8 +159,8 @@
     var right = defJobText(me);
     var opts = [right].concat(shuffle(pool.filter(function (t) { return t !== right; })).slice(0, 3));
     return {
-      kind: 'choice', prompt: 'We call <b>' + esc(def.name) + '</b>. You’re <b>' + esc(me.label) + '</b>. What’s your job?',
-      pic: A.defSVG(def, def.vs, [-7, 18], 'qa' + (uidN++)).replace('class="def-label">' + me.label + '<', 'class="def-label me">' + me.label + '<'),
+      kind: 'choice', prompt: 'We call <b>' + esc(def.name) + '</b>. You’re <b>' + esc(me.id) + '</b>' + (me.id === 'SC' ? ' (strong-side corner)' : me.id === 'WC' ? ' (weak-side corner)' : '') + '. What’s your job?',
+      pic: (function () { var lbl = D.cornerLabel(me.id, D.strength(E.buildSim(A.findOff(def.vs)))); return A.defSVG(def, def.vs, [-7, 18], 'qa' + (uidN++)).replace('class="def-label">' + lbl + '<', 'class="def-label me">' + lbl + '<'); })(),
       options: shuffle(opts).map(function (t) { return { text: t, ok: t === right }; }),
       explain: def.keys.join(' · '), anim: { off: A.findOff(def.vs), def: def, mode: 'def' }
     };

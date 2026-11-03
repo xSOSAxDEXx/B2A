@@ -600,3 +600,9 @@ a { color: #7df9ff; }
 .me-spots .tag { text-transform: none; font-size: .78rem; padding: 4px 8px; }
 .qz-spot { display: inline-block; font: 700 .72rem Inter; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--grad); padding: 3px 8px; border-radius: 6px; margin-right: 8px; vertical-align: middle; -webkit-text-fill-color: #fff; font-style: normal; }
 .quiz h2.qz-prompt { background: none; color: var(--text); -webkit-text-fill-color: var(--text); filter: none; font-style: normal; }
+.alt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.alt-picks { display: flex; flex-wrap: wrap; gap: 5px; }
+.alt-picks .chip.on { background: linear-gradient(135deg, #2ee6ff, #b26bff); color: #0c0620; border-color: transparent; }
+.pos-p { color: var(--text); }
+.zone-name { fill: #dcff9e; }
+@media (max-width: 620px) { .alt-row { grid-template-columns: 1fr; } }
