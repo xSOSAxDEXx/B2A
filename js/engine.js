@@ -304,6 +304,26 @@
       if (b.holder === 'QB' && t < gotBackT && sim.pos('QB', t)[1] > 0) { add('error', 'QB carries the ball across the line of scrimmage.'); break; }
     }
 
+    // Impeding the blitzer: a blitzer lines up 7+ yds deep and 1+ yd to either side of the ball, then runs straight at the QB.
+    // Any offensive player who MOVES into that lane while he's in it is a foul on the offense.
+    var cx = C[0], qbSnap = sim.pos('QB', SNAP_T), stopT = Math.min(ev.length ? ev[0].t : 7, 4), hits = {};
+    [-1, 1].forEach(function (side) {
+      var bs = [cx + side * 1.5, 7.5], L = dist(bs, qbSnap), u = [(qbSnap[0] - bs[0]) / L, (qbSnap[1] - bs[1]) / L];
+      for (var tb = 0.05; tb <= stopT; tb += 0.05) {
+        var d = Math.min(L - 1, tb * 5.6), bp = [bs[0] + u[0] * d, bs[1] + u[1] * d];
+        ['X', 'Y', 'Z', 'C'].forEach(function (r) {
+          var p1 = sim.pos(r, tb), p0 = sim.pos(r, tb - 0.05);
+          if (dist(p0, p1) > 0.02 && dist(p1, bp) < 1.0) { hits[r] = hits[r] || {}; if (hits[r][side] == null) hits[r][side] = tb; }
+        });
+      }
+    });
+    Object.keys(hits).forEach(function (r) {
+      var h = hits[r], both = h[-1] != null && h[1] != null;
+      var where = both ? 'from either side' : (h[-1] != null ? 'if the blitzer lines up on the left' : 'if the blitzer lines up on the right');
+      if (!both) { add('info', r + ' must release away from the blitzer: his path crosses the lane ' + where + '. Flip ' + r + '’s release when the hand goes up on that side.'); return; }
+      add('warn', r + '’s path crosses the blitzer’s lane ' + where + ' (~' + (h[-1] != null ? h[-1] : h[1]).toFixed(1) + 's) — moving into his path is impeding the blitzer (−5, loss of down). Adjust the release or the timing.');
+    });
+
     var exchangeFirst = ev.length && ev[0].type !== 'pass';
     if (isRun) add('info', 'Run play — illegal inside either no-run zone (5 yds before midfield or the goal line) and on 1-pt tries.');
     if (exchangeFirst && passes.length) add('info', 'Handoff/pitch comes first: the 7-sec clock is off, but every defender can now blitz.');

@@ -267,6 +267,11 @@
       info += '<div class="card"><h3>Coaching keys</h3><ul class="reads">' + d.keys.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>';
       info += '<div class="card"><h3>Strengths / weaknesses</h3><p><b class="good">+</b> ' + esc(d.strengths) + '</p><p><b class="bad">−</b> ' + esc(d.weaknesses) + '</p></div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'def') + '</div>';
+      var bl = d.defenders.filter(function (x) { return x.job === 'blitz'; });
+      info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + (bl.length ? bl.map(function (b) {
+        var off = Math.abs(b.start[0] - 12.5), ok = off >= 1 && b.start[1] >= 7;
+        return '<li class="' + (ok ? 'ok' : 'error') + '">' + esc(b.label) + ' lines up ' + b.start[1] + ' yds deep, ' + off.toFixed(1) + ' yds ' + (b.start[0] < 12.5 ? 'left' : 'right') + ' of the ball' + (ok ? ' — legal (7+ yds, 3+ ft off the ball)' : ' — must be 7+ yds deep and 3+ ft off the ball') + '</li>';
+      }).join('') + '<li class="info">Blitz in a straight line at the QB. A receiver who moves into that path is impeding the blitzer (−5, loss of down on them).</li>' : '<li class="ok">No blitzer — nobody crosses the line until a handoff, pitch or pass.</li>') + (bl.length > 2 ? '<li class="error">Max 2 blitzers.</li>' : '') + '</ul></div>';
       info += '<div class="card span2 legend">' + D.legendHTML() + '<span class="muted">Offense is faded — pick any of our plays above to test the coverage against it.</span></div>';
     }
     $('#v-info').innerHTML = info;

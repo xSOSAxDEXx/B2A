@@ -86,7 +86,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[23.5, 8], [23.5, 20]] } },
       Z: { route: { pts: [[20, 8], [24, 8.5]] } },
       Y: { route: { pts: [[18, 1], [24, 2.5]] } },
-      C: { route: { pts: [[12.5, 3], [5, 6]], delay: 0.4 } },
+      C: { route: { pts: [[10, 1.5], [5, 5]], delay: 0.3 } },
       QB: { route: { pts: [[17, -4.5]], speed: 4 } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Z', brk: 0 }],
@@ -99,7 +99,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[23.5, 9], [19, 17]] } },
       Z: { route: { pts: [[20, 9], [10, 9]] } },
       Y: { route: { pts: [[16, 2], [5, 2.5]] } },
-      C: { route: { pts: [[12.5, 12]], delay: 0.4 } },
+      C: { route: { pts: [[10, 2], [10, 12]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -6.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Z', brk: 0 }],
@@ -112,7 +112,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 9], [3, 8]] } },
       Y: { route: { pts: [[19, -3], [23, 1]] } },
       Z: { route: { pts: [[23, 9], [22, 8]] } },
-      C: { route: { pts: [[12.5, 6], [12.5, 13]], delay: 0.3 } },
+      C: { route: { pts: [[10, 2], [10, 6], [11, 13]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -6.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }],
@@ -125,7 +125,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[23.5, 8], [23.5, 20]] } },
       Z: { route: { pts: [[18, 6], [18, 20]] } },
       Y: { route: { pts: [[15, 7], [9, 18]] } },
-      C: { route: { pts: [[12.5, 5], [11, 5]], delay: 0.3 } },
+      C: { route: { pts: [[10, 2], [10, 5], [11, 5]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -7]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Y', brk: 0 }],
@@ -138,7 +138,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 8], [8, 15]] } },
       Y: { route: { pts: [[4, 1], [2, 6], [2, 18]] } },
       Z: { route: { pts: [[23, 10], [24, 8.5]] } },
-      C: { route: { pts: [[12.5, 6], [12, 6]], delay: 0.7 } },
+      C: { route: { pts: [[10, 2], [10.5, 6]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -6.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Y', brk: 1 }],
@@ -207,12 +207,12 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 4], [6, 8]] } },
       Z: { route: { pts: [[23, 4], [19, 8]] } },
       Y: { route: { pts: [[7, 6], [7, 18]] } },
-      C: { route: { pts: [[12.5, 5], [12.5, 5.5]], delay: 0.5, speed: 5, sit: true } },
+      C: { route: { pts: [[10.5, 3.5], [10.5, 5]], delay: 0.6, speed: 5, sit: true } },
       QB: { route: { pts: [[12.5, -5.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'C', brk: 0 }],
-    reads: ['C delay — settles exactly where the blitzer started', 'X slant', 'Z slant', 'Y seam'],
-    notes: 'C snaps, counts one, then sits at 5 facing the QB with hands up. When the blitzer comes, that spot is empty.'
+    reads: ['C delay — settles on the side away from the blitzer', 'X slant', 'Z slant', 'Y seam'],
+    notes: 'C snaps, lets the blitzer clear, then slides to the side AWAY from him and sits at 5 facing the QB, hands up — the area the blitzer just left is empty.'
   },
   {
     id: 'center-seam', cat: 'center', name: 'Center Seam', formation: 'spread', tags: ['pass', 'deep', 'cover-2', 'vs-zone'],
@@ -220,10 +220,10 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 8], [2.5, 20]] } },
       Z: { route: { pts: [[23, 8], [22.5, 20]] } },
       Y: { route: { pts: [[5, 1], [1, 2.5]] } },
-      C: { route: { pts: [[12.5, 7], [12.5, 18]], delay: 0.2 } },
+      C: { route: { pts: [[10.5, 2.5], [11.5, 8], [11.5, 18]], delay: 0.2 } },
       QB: { route: { pts: [[12.5, -6.5]] } }
     },
-    events: [{ type: 'pass', from: 'QB', to: 'C', brk: 0 }],
+    events: [{ type: 'pass', from: 'QB', to: 'C', brk: 1 }],
     reads: ['C seam between the two deep safeties', 'X / Z go (whichever safety cheats inside)', 'Y flat'],
     notes: 'Defenses put their slowest player on the center. Outside gos hold the safeties wide; C splits them.'
   },
@@ -416,7 +416,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[2, 7], [8, 14]] } },
       Z: { route: { pts: [[23, 8], [14, 8]] } },
       Y: { route: { pts: [[4, 1], [2, 6], [2, 14]] } },
-      C: { route: { pts: [[12.5, 4], [12, 4]], delay: 0.3 } },
+      C: { route: { pts: [[10, 2], [10, 4]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -6.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }],

@@ -5,7 +5,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'cover0', name: 'Cover 0 Blitz', front: '1 blitzer · 4 man', vs: 'smash', tags: ['man', 'blitz', 'short-yardage', 'third-down', 'pressure'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'LC', label: 'LC', job: 'man', on: 'X' },
       { id: 'RC', label: 'RC', job: 'man', on: 'Z' },
       { id: 'N', label: 'N', job: 'man', on: 'Y' },
@@ -19,7 +19,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'cover1', name: 'Cover 1 Free', front: '1 blitzer · 3 man · free safety', vs: 'four-verts', tags: ['man', 'blitz', 'deep-help'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'LC', label: 'LC', job: 'man', on: 'X' },
       { id: 'RC', label: 'RC', job: 'man', on: 'Z' },
       { id: 'N', label: 'N', job: 'man', on: 'Y' },
@@ -47,7 +47,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'cover2', name: 'Cover 2', front: '1 blitzer · 2 flats · 2 deep halves', vs: 'curl-flat', tags: ['zone', 'blitz', 'base', 'vs-deep'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'LC', label: 'LC', job: 'zone', start: [4, 5], drop: [4, 5], r: 5.5, zone: 'Flat L' },
       { id: 'RC', label: 'RC', job: 'zone', start: [21, 5], drop: [21, 5], r: 5.5, zone: 'Flat R' },
       { id: 'S1', label: 'S1', job: 'zone', start: [7, 11], drop: [6.5, 17], r: 7, zone: 'Deep ½ L' },
@@ -61,7 +61,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'cover3', name: 'Cover 3', front: '1 blitzer · 3 deep thirds · 1 hook', vs: 'post-wheel', tags: ['zone', 'blitz', 'vs-deep', 'prevent-first-down'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'LC', label: 'LC', job: 'zone', start: [4, 7], drop: [4, 16], r: 6, zone: 'Deep ⅓ L' },
       { id: 'FS', label: 'FS', job: 'zone', start: [12.5, 10], drop: [12.5, 17], r: 6, zone: 'Deep ⅓ M' },
       { id: 'RC', label: 'RC', job: 'zone', start: [21, 7], drop: [21, 16], r: 6, zone: 'Deep ⅓ R' },
@@ -75,7 +75,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'three-one', name: '3-1 Zone', front: '1 blitzer · 2 squat corners · M · FS', vs: 'snag', tags: ['zone', 'blitz', 'vs-bunch', 'vs-handoffs'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'LC', label: 'LC', job: 'zone', start: [2.5, 4], drop: [3.5, 7], r: 6, zone: 'Squat L' },
       { id: 'RC', label: 'RC', job: 'zone', start: [22.5, 4], drop: [21.5, 7], r: 6, zone: 'Squat R' },
       { id: 'M', label: 'M', job: 'zone', start: [12.5, 6], drop: [12.5, 6], r: 6, zone: 'Middle' },
@@ -89,7 +89,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'diamond', name: 'Diamond (1-2-1)', front: '1 blitzer · hook · 2 curl/flat · deep', vs: 'stick', tags: ['zone', 'blitz', 'base'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'M', label: 'M', job: 'zone', start: [12.5, 4], drop: [12.5, 4.5], r: 5.5, zone: 'Hook' },
       { id: 'WL', label: 'WL', job: 'zone', start: [6, 7], drop: [5.5, 8], r: 6, zone: 'Curl/Flat L' },
       { id: 'WR', label: 'WR', job: 'zone', start: [19, 7], drop: [19.5, 8], r: 6, zone: 'Curl/Flat R' },
@@ -117,7 +117,7 @@ var B2A_DEF_PLAYS = [
   {
     id: 'cover4', name: 'Cover 4 Prevent', front: '1 blitzer · 4 deep quarters', vs: 'four-verts', tags: ['zone', 'blitz', 'prevent', 'red-zone', 'two-minute'],
     defenders: [
-      { id: 'B', label: 'B', job: 'blitz', start: [12.5, 7.5] },
+      { id: 'B', label: 'B', job: 'blitz', start: [14, 7.5] },
       { id: 'Q1', label: 'Q1', job: 'zone', start: [3.5, 9], drop: [3.5, 14], r: 5, zone: '¼' },
       { id: 'Q2', label: 'Q2', job: 'zone', start: [9.5, 9], drop: [9.5, 14], r: 5, zone: '¼' },
       { id: 'Q3', label: 'Q3', job: 'zone', start: [15.5, 9], drop: [15.5, 14], r: 5, zone: '¼' },

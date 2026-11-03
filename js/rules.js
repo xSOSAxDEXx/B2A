@@ -63,8 +63,9 @@ var B2A_RULES = [
     title: 'Defense', icon: 'shield',
     items: [
       { t: 'Up to <b>2 blitzers</b>. Each must start 7+ yards off the line with a hand raised before the snap, and blitz straight and immediately.' },
+      { league: true, t: 'A blitzer must line up at least <b>3 feet (1 yd) to the left or right</b> of the ball — never directly over the center.' },
       { t: 'Any other defender can’t cross the line until there’s a handoff, pitch, or pass. After a handoff <b>everyone</b> can blitz.' },
-      { t: 'Blitzers have right of way — a moving offensive player who cuts them off is “impeding the blitzer.” A player standing still has right of place.' },
+      { t: 'A blitzer running in a straight line at the QB has right of way. If a receiver (or the center) moves into his path, it’s <b>impeding the blitzer: −5 and loss of down</b>. A player standing still has right of place — the blitzer must go around him.' },
       { t: 'No contact with the QB, no holding, no stripping the ball, no pulling flags of a player without the ball.' }
     ]
   },
