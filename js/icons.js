@@ -6,6 +6,7 @@
     football: '<ellipse cx="12" cy="12" rx="9.5" ry="6" transform="rotate(-35 12 12)"/><path d="M8.6 15.4l6.8-6.8M10.3 11.6l2.1 2.1M11.9 10l2.1 2.1M8.7 13.2l2.1 2.1"/>',
     clipboard: '<rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M8.5 10h7M8.5 13.5h7M8.5 17h4"/>',
     chart: '<path d="M3 20.5h18"/><path d="M6 17v-4M10.5 17V8M15 17v-6M19.5 17V4"/><circle cx="19.5" cy="4" r=".2"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 015 .9c0 1.8-2.5 2.3-2.5 3.9M12 17v.2"/>',
     users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.2 5 2.3 5 5.3"/>',
     jersey: '<path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3a4 4 0 01-8 0z"/>',
     warn: '<path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5M12 17v.2"/>',

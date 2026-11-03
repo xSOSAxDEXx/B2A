@@ -640,3 +640,22 @@ body.cloud .user-chip { display: flex; }
 @media (max-width: 620px) { .ac-row { grid-template-columns: 1fr 1fr; } .ac-who { grid-column: 1 / -1; } .user-chip { width: 100%; justify-content: flex-end; } }
 
 body.cloud .local-only-inline { display: none; }
+
+/* ===== help ===== */
+.help { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.help-head h1 { font-size: 2rem; margin-bottom: 4px; }
+.help-sec { padding: 0; overflow: hidden; }
+.help-sec summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 14px 16px; font: 700 1.15rem 'Barlow Condensed', Inter; letter-spacing: .03em; }
+.help-sec summary::-webkit-details-marker { display: none; }
+.help-sec summary::after { content: '▾'; margin-left: auto; color: #ff3ec8; transition: transform .2s; }
+.help-sec[open] summary::after { transform: rotate(180deg); }
+.help-sec summary .vw-icon { width: 1.4em; height: 1.4em; }
+.help-sec summary .pill { font: 600 .68rem Inter; text-transform: uppercase; letter-spacing: .06em; }
+.help-body { padding: 0 18px 16px; border-top: 1px solid var(--line); }
+.help-body ol, .help-body ul { padding-left: 1.3rem; margin: 12px 0; }
+.help-body li { margin: 7px 0; line-height: 1.5; }
+.help-body ul ul { margin: 6px 0; }
+.help-dl dt { font-weight: 700; margin-top: 12px; display: flex; align-items: center; gap: 6px; color: #e9ddff; }
+.help-dl dd { margin: 4px 0 0 0; color: var(--text); line-height: 1.5; }
+.help-table td:first-child { white-space: nowrap; width: 80px; }
+.help-body .lg-item { margin-right: 8px; }
