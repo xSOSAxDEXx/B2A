@@ -72,7 +72,7 @@
     { id: 'faq', icon: 'warn', title: 'Troubleshooting', body:
       '<dl class="help-dl">' +
       '<dt>“Not on the team list yet”</dt><dd>The email you signed in with isn’t the one the coach added (Gmail vs another address is the usual cause). Tap <i>Use a different account</i>, or ask the coach to add that exact email.</dd>' +
-      '<dt>Never got the verification email</dt><dd>Check spam/junk, then tap <i>Resend email</i> on the sign-in screen.</dd>' +
+      '<dt>“Can’t reach the team data” / “client is offline”</dt><dd>You’re signed in — the phone just can’t reach the team database. Switch to Wi-Fi or better signal, turn off any ad blocker or VPN, and on Samsung/Android set <i>Settings → Connections → More connection settings → Private DNS</i> to <b>Automatic</b>. Then tap Retry.</dd><dt>Never got the verification email</dt><dd>Check spam/junk, then tap <i>Resend email</i> on the sign-in screen.</dd>' +
       '<dt>Forgot password</dt><dd>Type your email on the sign-in screen and tap <i>Forgot password?</i></dd>' +
       '<dt>“You don’t have permission to change that”</dt><dd>Your role can’t edit that item. Ask the coach for Editor access if you need it.</dd>' +
       '<dt>Something looks out of date</dt><dd>Pull down to refresh or reload the page. Changes from others appear live once you’re signed in.</dd>' +

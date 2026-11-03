@@ -50,7 +50,8 @@
   function friendly(e) {
     var m = { 'auth/invalid-credential': 'Wrong email or password.', 'auth/wrong-password': 'Wrong email or password.', 'auth/user-not-found': 'No account with that email — tap “Create account”.',
       'auth/email-already-in-use': 'That email already has an account — tap “Sign in”.', 'auth/weak-password': 'Use at least 6 characters.', 'auth/invalid-email': 'That email doesn’t look right.',
-      'auth/popup-closed-by-request': 'Sign-in window was closed.', 'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).' };
+      'auth/popup-closed-by-request': 'Sign-in window was closed.', 'unavailable': 'Couldn’t connect to the team database (the connection looks weak or blocked).', 'auth/network-request-failed': 'No connection — check your signal or Wi-Fi and try again.', 'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).' };
+    if (e && !m[e.code] && /client is offline/i.test(e.message || '')) return m.unavailable;
     return m[e && e.code] || (e && e.message) || 'Something went wrong.';
   }
   function verifyScreen(user) {
@@ -175,6 +176,15 @@
     var out = document.getElementById('uc-out'); if (out) out.onclick = function () { if (confirm('Sign out of the B2A playbook?')) auth.signOut(); };
   }
 
+  function isOffline(e) { return e && (e.code === 'unavailable' || /offline|network/i.test(e.message || '')); }
+  function getRetry(ref, n, k) {   // retry with backoff while the connection warms up
+    k = k || 0;
+    return ref.get().catch(function (e) {
+      if (!isOffline(e) || k >= n) throw e;
+      showGate('<h2>Signing in…</h2><p class="hint">Weak connection — trying again (' + (k + 1) + '/' + n + ')…</p>');
+      return new Promise(function (r) { setTimeout(r, 1500 * (k + 1)); }).then(function () { return getRetry(ref, n, k + 1); });
+    });
+  }
   function onUser(user) {
     stop(); C.user = user;
     if (!user) { C.member = null; C.role = null; signInScreen(); return; }
@@ -182,7 +192,7 @@
     if (pw && !user.emailVerified) { verifyScreen(user); return; }
     var em = user.email.toLowerCase();
     showGate('<h2>Signing in…</h2><p class="hint">' + esc(em) + '</p>');
-    teamRef.collection('members').doc(em).get().then(function (doc) {
+    getRetry(teamRef.collection('members').doc(em), 4).then(function (doc) {
       if (doc.exists) {
         C.member = Object.assign({ email: em }, doc.data()); C.role = C.member.role;
         // fill in a display name the first time
@@ -192,10 +202,16 @@
         return;
       }
       // not on the list: if the team doesn't exist yet, this person can set it up; otherwise ask the coach
-      return teamRef.get().then(function (t) { if (!t.exists) setupScreen(user); else notMemberScreen(user); })
+      return getRetry(teamRef, 2).then(function (t) { if (!t.exists) setupScreen(user); else notMemberScreen(user); })
         .catch(function () { notMemberScreen(user); });
     }).catch(function (e) {
-      showGate('<h2>Can’t reach the team data</h2><p class="gate-msg">' + esc(friendly(e)) + '</p><p class="hint">If this is the first setup, make sure the rules from <b>firestore.rules</b> are published.</p><button class="btn primary full" onclick="location.reload()">Retry</button>');
+      var off = isOffline(e);
+      showGate('<h2>Can’t reach the team data</h2><p class="gate-msg">' + esc(friendly(e)) + '</p>' +
+        (off ? '<p class="hint">You’re signed in fine — the connection to the team database just isn’t getting through. Try: <b>switch to Wi-Fi</b> (or move to better signal) · turn off any <b>ad blocker / VPN</b> · on Samsung/Android set <b>Settings → Connections → More connection settings → Private DNS</b> to <i>Automatic</i> · then tap Retry.</p>'
+             : '<p class="hint">If this is the first setup, make sure the rules from <b>firestore.rules</b> are published.</p>') +
+        '<button class="btn primary full" id="g-retry2">Retry</button><button class="btn ghost full" id="g-out2">Sign out</button>');
+      document.getElementById('g-retry2').onclick = function () { onUser(auth.currentUser); };
+      document.getElementById('g-out2').onclick = function () { auth.signOut(); };
     });
   }
 
@@ -208,6 +224,8 @@
       loadSDK().then(function () {
         firebase.initializeApp(CFG);
         auth = firebase.auth(); db = firebase.firestore();
+        // long polling instead of the streaming channel: much more reliable on weak mobile data, carrier proxies and ad-blocking DNS
+        try { if (db.settings) db.settings({ experimentalForceLongPolling: true }); } catch (x) { }
         teamRef = db.collection('teams').doc(TEAM);
         var redirecting = false; try { redirecting = sessionStorage.getItem('b2a.redirect') === '1'; sessionStorage.removeItem('b2a.redirect'); } catch (x) { }
         if (redirecting) auth.getRedirectResult().catch(function (e) { signInScreen(esc(friendly(e))); });
