@@ -2,7 +2,7 @@
 
 Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FLAG / USA Flag rules with our house rules: **3 downs**, 25-yd field, no-run zones 5 yds before midfield and each goal line, 1 timeout per half, turnover on downs = ball at their own 5.
 
-**Live:** https://xsosaxdex.github.io/B2A/
+**Live:** https://xsosaxdexx.github.io/B2A/
 
 ## Tabs
 - **Plays** — Offense/Defense switch. 30 offensive plays in 8 sections (quick game, dropback, man beaters, center plays, trick, runs, midfield no-run, red zone & PAT) and 9 defensive calls (Cover 0/1/Robber/2/3, 3-1, Diamond, Double Blitz, Cover 4). Run any of our plays against any of our coverages: QBs throw on the receiver's break, receivers run after the catch, defenders react and pull flags, and the result (separation at the catch, gain, sack, TD) is shown. Thumbs up/down, add to the game plan, rules check, our logged results per play.

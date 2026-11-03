@@ -28,7 +28,7 @@ When you're done, the site will:
 2. **Sign-in method** tab:
    - **Google** → Enable → pick your support email → Save.
    - **Email/Password** → Enable (first switch only) → Save.
-3. **Settings** tab → **Authorized domains** → **Add domain** → `xsosaxdex.github.io` → Add.
+3. **Settings** tab → **Authorized domains** → **Add domain** → `xsosaxdexx.github.io` → Add.
 
 ## 4. Create the database
 1. Left menu → **Build → Firestore Database** → **Create database**.
@@ -41,7 +41,7 @@ When you're done, the site will:
 3. **Publish**.
 
 ## 6. Claim the team (first sign-in)
-1. Once the config is in the site (step 2), open https://xsosaxdex.github.io/B2A/ and hard-refresh.
+1. Once the config is in the site (step 2), open https://xsosaxdexx.github.io/B2A/ and hard-refresh.
 2. **Sign in with Google** using your account.
 3. You'll see **"Set up the team"** → **Claim B2A as coach**.
 4. It will offer to bring over any existing data (games, roster, results, team plays) — say **OK**.
