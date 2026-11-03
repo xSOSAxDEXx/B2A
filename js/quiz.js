@@ -149,10 +149,11 @@
       anim: { off: off, def: scored[0].d, mode: 'def' }
     };
   }
-  function assignmentQ(def, wantBlitz) {
+  function assignmentQ(def, wantBlitz, label) {
     var mine = def.defenders.filter(function (d) { return wantBlitz ? d.job === 'blitz' : d.job !== 'blitz'; });
     if (!mine.length) return null;
-    var me = pick(mine);
+    var me = label ? def.defenders.filter(function (d) { return d.id === label; })[0] : pick(mine);
+    if (!me) return null;
     var pool = [];
     A.defPlays().forEach(function (o) { o.defenders.forEach(function (d) { var t = defJobText(d); if (pool.indexOf(t) < 0) pool.push(t); }); });
     var right = defJobText(me);
@@ -193,6 +194,48 @@
     });
   }
 
+  /* "Quiz me on my spots": every spot this player is assigned in this week's game plan */
+  function mySpots(pid) {
+    var g = ST.game(), out = [];
+    if (!g) return out;
+    ['off', 'def'].forEach(function (side) {
+      g.plan[side].forEach(function (id) {
+        var a = (g.assign[side] || {})[id] || {};
+        Object.keys(a).forEach(function (role) { if (a[role] === pid) out.push({ side: side, id: id, role: role }); });
+      });
+    });
+    return out;
+  }
+  function buildForPlayer(pid) {
+    var me = ST.S.data.roster.filter(function (p) { return p.id === pid; })[0], spots = mySpots(pid), qs = [];
+    var defs = defList(), offs = offList();
+    function add(q) { if (q) { q.prompt = '<span class="qz-spot">' + esc(q.spotTag) + '</span>' + q.prompt; qs.push(q); } }
+    shuffle(spots).forEach(function (s) {
+      if (s.side === 'off') {
+        var p = A.findOff(s.id); if (!p) return;
+        var tag = s.role + ' · ' + p.name;
+        if (s.role === 'QB') {
+          var a = firstReadQ(p); if (a) { a.spotTag = tag; add(a); }
+          var b = timingQ(p); if (b) { b.spotTag = tag; add(b); }
+          if (defs.length) { var c = whosOpenQ(p, pick(defs)); if (c) { c.spotTag = tag; add(c); } }
+        } else {
+          var r = routeQ(p, s.role); if (r) { r.spotTag = tag; add(r); }
+          var pass = p.events.filter(function (e) { return e.type === 'pass'; })[0];
+          if (pass && pass.to === s.role) { var t = timingQ(p); if (t) { t.prompt = t.prompt.replace('when should the ball come out to ' + s.role, 'when should you expect the ball'); t.spotTag = tag; add(t); } }
+        }
+      } else {
+        var d = A.findDef(s.id); if (!d) return;
+        var q = assignmentQ(d, null, s.role); if (q) { q.spotTag = s.role + ' · ' + d.name; add(q); }
+        var off = pick(offs.length ? offs : A.offPlays());
+        var bq = bestCallQ(off, defs.length >= 3 ? defs : A.defPlays()); if (bq && Math.random() < 0.5) { bq.spotTag = 'Defense'; add(bq); }
+      }
+    });
+    var who = me && me.offPos === 'QB' ? 'qb' : 'off';
+    var rq = shuffle(rulesQs(who).concat(rulesQs(me && me.defPos === 'B' ? 'blitz' : 'def'))).slice(0, 3).map(function (q) { q.spotTag = 'Rules'; return q; });
+    rq.forEach(add);
+    return { list: qs.slice(0, Math.max(Q.n, spots.length + 2)), spots: spots, me: me };
+  }
+
   function build() {
     var pos = Q.pos, offs = offList(), defs = defList(), qs = [];
     function add(q) { if (q) qs.push(q); }
@@ -223,14 +266,35 @@
     stopAnim();
     var g = ST.game(), hasPlan = g && (g.plan.off.length || g.plan.def.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
-    root.innerHTML = '<div class="quiz-setup card"><h2>Quiz</h2><p class="hint">Pick your position. Questions come from ' + (hasPlan ? 'the <b>' + esc(g.opp) + '</b> game plan' : 'the playbook') + ' — where you go, who’s open, what to call.</p>' +
+    var ros = ST.S.data.roster.filter(function (p) { return mySpots(p.id).length; });
+    var mine = ros.length ? '<div class="quiz-me card"><h2>Quiz me on my spots</h2><p class="hint">Every spot you’re assigned in the <b>' + esc(g.opp) + '</b> game plan — your routes, your reads, your coverage job.</p>' +
+      '<div class="dd-row"><label class="dd grow"><span>I am</span><select id="qz-me">' + ros.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (p) {
+        return '<option value="' + p.id + '">' + esc((p.number ? '#' + p.number + ' ' : '') + p.name) + ' — ' + mySpots(p.id).length + ' spots</option>'; }).join('') + '</select></label>' +
+      '<button class="btn primary" id="qz-me-go">' + ICON('play') + ' Start my quiz</button></div><div id="qz-me-spots" class="me-spots"></div></div>' : '';
+    root.innerHTML = mine + '<div class="quiz-setup card"><h2>' + (mine ? 'Or quiz by position' : 'Quiz') + '</h2><p class="hint">Pick your position. Questions come from ' + (hasPlan ? 'the <b>' + esc(g.opp) + '</b> game plan' : 'the playbook') + ' — where you go, who’s open, what to call.</p>' +
       '<div class="pos-grid">' + POS.map(function (p) { return '<button class="pos" data-pos="' + p[0] + '"><span>' + ICON(p[2]) + '</span><b>' + p[1] + '</b>' + (best[p[0]] ? '<small>Best ' + best[p[0]] + '%</small>' : '') + '</button>'; }).join('') + '</div>' +
       '<div class="dd-row"><label class="dd"><span>Questions from</span><select id="qz-src"><option value="plan"' + (hasPlan ? '' : ' disabled') + '>This week’s game plan' + (hasPlan ? ' (vs ' + esc(g.opp) + ')' : ' — none yet') + '</option><option value="all">Whole playbook</option></select></label>' +
       '<label class="dd"><span>Length</span><select id="qz-n"><option>5</option><option selected>10</option><option>15</option></select></label></div></div>';
     $('#qz-src').value = hasPlan ? Q.src : 'all';
+    if (mine) {
+      var showSpots = function () {
+        var sp = mySpots($('#qz-me').value);
+        $('#qz-me-spots').innerHTML = sp.map(function (s) { var p = s.side === 'off' ? A.findOff(s.id) : A.findDef(s.id); return '<span class="tag">' + ICON(s.side === 'off' ? 'football' : 'shield') + ' ' + esc(s.role) + ' · ' + esc(p ? p.name : s.id) + '</span>'; }).join('');
+      };
+      try { var last = localStorage.getItem('b2a.quiz.me'); if (last && ros.some(function (p) { return p.id === last; })) $('#qz-me').value = last; } catch (e) { }
+      showSpots();
+      $('#qz-me').addEventListener('change', showSpots);
+      $('#qz-me-go').addEventListener('click', function () {
+        var pid = $('#qz-me').value; try { localStorage.setItem('b2a.quiz.me', pid); } catch (e) { }
+        Q.mode = 'me'; Q.pid = pid; Q.src = 'plan'; Q.n = 10;
+        var b = buildForPlayer(pid); Q.list = b.list; Q.meName = b.me ? b.me.name : 'Me'; Q.i = 0; Q.score = 0; Q.missed = [];
+        if (!Q.list.length) { A.toast('No questions could be built from your spots yet.'); return; }
+        showQ();
+      });
+    }
     root.querySelector('.pos-grid').addEventListener('click', function (e) {
       var b = e.target.closest('.pos'); if (!b) return;
-      Q.pos = b.dataset.pos; Q.src = $('#qz-src').value; Q.n = +$('#qz-n').value;
+      Q.mode = 'pos'; Q.pos = b.dataset.pos; Q.src = $('#qz-src').value; Q.n = +$('#qz-n').value;
       Q.list = build(); Q.i = 0; Q.score = 0; Q.missed = [];
       if (!Q.list.length) { A.toast('Not enough plays in the plan for this position yet — try “Whole playbook”.'); return; }
       showQ();
@@ -239,7 +303,7 @@
   function stopAnim() { if (Q.anim) { Q.anim.stop(); Q.anim = null; } }
   function showQ() {
     stopAnim(); Q.answered = false;
-    var q = Q.list[Q.i], posName = POS.filter(function (p) { return p[0] === Q.pos; })[0][1];
+    var q = Q.list[Q.i], posName = Q.mode === 'me' ? Q.meName + ' · this week' : POS.filter(function (p) { return p[0] === Q.pos; })[0][1];
     root.innerHTML = '<div class="quiz card"><div class="qz-top"><span>' + esc(posName) + '</span><span>Question ' + (Q.i + 1) + ' / ' + Q.list.length + ' · Score ' + Q.score + '</span><button class="btn ghost small" id="qz-quit">Quit</button></div>' +
       '<div class="qz-bar"><i style="width:' + (100 * Q.i / Q.list.length) + '%"></i></div>' +
       '<h2 class="qz-prompt">' + q.prompt + '</h2>' + (q.pic ? '<div class="qz-pic">' + q.pic + '</div>' : '') +
@@ -266,11 +330,11 @@
     stopAnim();
     var p = Math.round(100 * Q.score / Q.list.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
-    if (!best[Q.pos] || p > best[Q.pos]) { best[Q.pos] = p; try { localStorage.setItem(LS_BEST, JSON.stringify(best)); } catch (e) { } }
+    if (Q.mode !== 'me' && (!best[Q.pos] || p > best[Q.pos])) { best[Q.pos] = p; try { localStorage.setItem(LS_BEST, JSON.stringify(best)); } catch (e) { } }
     root.innerHTML = '<div class="quiz card done"><h2>' + Q.score + ' / ' + Q.list.length + ' <small>(' + p + '%)</small></h2><p>' + (p >= 90 ? 'Game ready.' : p >= 70 ? 'Solid — review the misses below.' : 'Spend some time in the Plays tab, then run it back.') + '</p>' +
       (Q.missed.length ? '<h3>Review</h3><ul class="missed">' + Q.missed.map(function (q) { return '<li><b>' + q.prompt.replace(/<[^>]+>/g, '') + '</b><br><span class="muted">' + esc(q.explain || '') + '</span>' + (q.play ? ' <a href="#" data-open="' + esc(q.play.id) + '">Open play</a>' : '') + '</li>'; }).join('') + '</ul>' : '') +
       '<div class="series-actions"><button class="btn primary" id="qz-again">Run it back</button><button class="btn" id="qz-other">Change position</button></div></div>';
-    $('#qz-again').addEventListener('click', function () { Q.list = build(); Q.i = 0; Q.score = 0; Q.missed = []; showQ(); });
+    $('#qz-again').addEventListener('click', function () { Q.list = Q.mode === 'me' ? buildForPlayer(Q.pid).list : build(); Q.i = 0; Q.score = 0; Q.missed = []; showQ(); });
     $('#qz-other').addEventListener('click', setup);
     root.addEventListener('click', function (e) { var a = e.target.closest('[data-open]'); if (a) { e.preventDefault(); A.openPlay(a.dataset.open, 'off'); } });
   }
