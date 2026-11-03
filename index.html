@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>B2A Flag Playbook</title>
+  <meta name="description" content="Interactive 5v5 flag football playbook for B2A — animated plays, game-day play caller, play designer with a built-in rules checker.">
+  <meta name="theme-color" content="#0b1410">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='50' cy='50' rx='44' ry='28' fill='%238b4513' transform='rotate(-35 50 50)'/><path d='M34 50h32M40 44v12M50 44v12M60 44v12' stroke='white' stroke-width='5' transform='rotate(-35 50 50)'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo">B2A</span>
+      <span class="sub">Flag Playbook<small>5v5 · Adult 18+ · 3 downs</small></span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="plays" role="tab">Plays</button>
+      <button class="tab" data-tab="gameday" role="tab">Game Day</button>
+      <button class="tab" data-tab="designer" role="tab">Designer</button>
+      <button class="tab" data-tab="rules" role="tab">Rules</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ================= PLAYS ================= -->
+    <section id="tab-plays" class="panel active">
+      <aside class="playlist">
+        <div class="list-tools">
+          <input id="search" type="search" placeholder="Search plays…" autocomplete="off">
+          <div class="chips" id="filter-chips"></div>
+        </div>
+        <div id="play-list" class="cards"></div>
+        <button id="print-btn" class="btn ghost full">🖨 Print call sheet / wristband</button>
+      </aside>
+
+      <section class="viewer">
+        <div class="viewer-head">
+          <div>
+            <h1 id="v-name">—</h1>
+            <div id="v-meta" class="meta"></div>
+          </div>
+          <div class="legal" id="v-legal"></div>
+        </div>
+
+        <div class="field-wrap">
+          <svg id="field" class="field-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="hud">
+            <div class="clock"><span>TIME</span><b id="v-time">0.0s</b></div>
+            <div class="clock pass"><span>QB CLOCK</span><b id="v-pclock">0.0 / 7</b></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="v-play" class="btn primary">▶ Run play</button>
+          <button id="v-reset" class="btn">⟲ Reset</button>
+          <input id="v-scrub" type="range" min="0" max="1000" value="0" aria-label="Scrub timeline">
+          <select id="v-speed" aria-label="Playback speed">
+            <option value="0.35">0.35×</option>
+            <option value="0.6" selected>0.6×</option>
+            <option value="1">1×</option>
+          </select>
+        </div>
+        <div class="controls toggles">
+          <button id="v-flip" class="btn toggle">⇆ Flip</button>
+          <button id="v-def" class="btn toggle">✕ Show defense</button>
+          <button id="v-edit" class="btn">✎ Edit copy</button>
+          <button id="v-share" class="btn">🔗 Share link</button>
+          <button id="v-del" class="btn danger hidden">🗑 Delete</button>
+        </div>
+
+        <div class="info-grid">
+          <div class="card">
+            <h3>Progression</h3>
+            <ol id="v-reads" class="reads"></ol>
+          </div>
+          <div class="card">
+            <h3>Coaching points</h3>
+            <p id="v-notes"></p>
+          </div>
+          <div class="card span2">
+            <h3>Rules check</h3>
+            <ul id="v-checks" class="checks"></ul>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= GAME DAY ================= -->
+    <section id="tab-gameday" class="panel">
+      <div class="gd-grid">
+        <div class="card board">
+          <h3>Scoreboard</h3>
+          <div class="score-row">
+            <div class="team"><span>B2A</span><b id="sc-us">0</b>
+              <div class="mini"><button data-sc="us" data-v="6">+6</button><button data-sc="us" data-v="1">+1</button><button data-sc="us" data-v="2">+2</button><button data-sc="us" data-v="-1">−1</button></div>
+            </div>
+            <div class="team"><span>THEM</span><b id="sc-them">0</b>
+              <div class="mini"><button data-sc="them" data-v="6">+6</button><button data-sc="them" data-v="1">+1</button><button data-sc="them" data-v="2">+2</button><button data-sc="them" data-v="-1">−1</button></div>
+            </div>
+          </div>
+          <div class="half-row">
+            <div class="seg" id="half-seg"><button data-half="1" class="on">1st half</button><button data-half="2">2nd half</button></div>
+            <div class="tos"><span>Our timeouts</span><span id="to-dots"></span></div>
+          </div>
+          <button id="gd-reset" class="btn ghost small">Reset game</button>
+        </div>
+
+        <div class="card series">
+          <h3>Current series</h3>
+          <div class="downs" id="downs">
+            <button data-down="1">1st</button><button data-down="2">2nd</button><button data-down="3">3rd</button>
+          </div>
+          <div class="seg wrap" id="sit-seg">
+            <button data-sit="own">Own half</button>
+            <button data-sit="past">Past midfield</button>
+            <button data-sit="nrz">Inside 5 (no-run)</button>
+            <button data-sit="pat1">PAT 1-pt</button>
+            <button data-sit="pat2">PAT 2-pt</button>
+          </div>
+          <label class="check"><input type="checkbox" id="gd-blitz"> They’re sending a blitzer</label>
+          <div class="series-actions">
+            <button class="btn" id="gd-next">Next down →</button>
+            <button class="btn" id="gd-mid">Crossed midfield ✓</button>
+            <button class="btn" id="gd-td">Touchdown 🏈</button>
+            <button class="btn ghost" id="gd-new">New series</button>
+          </div>
+          <p class="hint" id="gd-hint"></p>
+        </div>
+
+        <div class="card recs span2">
+          <h3>Call this <small id="gd-sub"></small></h3>
+          <div id="gd-recs" class="rec-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DESIGNER ================= -->
+    <section id="tab-designer" class="panel">
+      <div class="designer">
+        <div class="d-field">
+          <div class="d-toolbar">
+            <div class="seg" id="d-mode"><button data-mode="draw" class="on">✎ Draw routes</button><button data-mode="move">✥ Move players</button></div>
+            <div class="role-chips" id="d-roles"></div>
+          </div>
+          <div class="field-wrap">
+            <svg id="dfield" class="field-svg designer-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="hud"><div class="clock"><span>TIME</span><b id="d-time">—</b></div></div>
+          </div>
+          <p class="hint" id="d-hint">Pick a player, then tap the field to add route points. Points snap to ½ yard.</p>
+          <div class="controls">
+            <button class="btn" id="d-undo">↶ Undo point</button>
+            <button class="btn" id="d-clear">Clear route</button>
+            <button class="btn primary" id="d-preview">▶ Preview</button>
+            <button class="btn" id="d-motion">Set as motion</button>
+          </div>
+        </div>
+
+        <div class="d-side">
+          <div class="card">
+            <h3>Play</h3>
+            <label>Name <input id="d-name" type="text" placeholder="e.g. Trips Smash"></label>
+            <div class="row2">
+              <label>Formation
+                <select id="d-form"></select>
+              </label>
+              <label>Yards to goal
+                <select id="d-ytg"><option value="">Open field</option><option value="5">5 (no-run / PAT-1)</option><option value="10">10 (PAT-2)</option></select>
+              </label>
+            </div>
+            <div class="tag-picks" id="d-tags"></div>
+          </div>
+
+          <div class="card">
+            <h3>Selected: <span id="d-sel-name">QB</span></h3>
+            <div class="row2">
+              <label>Starts moving at (s) <input id="d-delay" type="number" step="0.1" min="0" max="5"></label>
+              <label>Speed (yd/s) <input id="d-speed" type="number" step="0.5" min="1" max="10"></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Ball exchanges <small>(snap to QB is automatic)</small></h3>
+            <div id="d-events"></div>
+            <button class="btn small" id="d-add-ev">+ Add handoff / pitch / pass</button>
+          </div>
+
+          <div class="card">
+            <h3>Rules check</h3>
+            <ul id="d-checks" class="checks"></ul>
+          </div>
+
+          <div class="card">
+            <h3>Progression &amp; notes</h3>
+            <label>Reads (one per line)<textarea id="d-reads" rows="3"></textarea></label>
+            <label>Coaching points<textarea id="d-notes" rows="3"></textarea></label>
+          </div>
+
+          <div class="d-actions">
+            <button class="btn primary" id="d-save">💾 Save to my plays</button>
+            <button class="btn" id="d-new">New play</button>
+            <button class="btn" id="d-copy">Copy JSON</button>
+            <button class="btn" id="d-export">Export all my plays</button>
+            <label class="btn file">Import… <input type="file" id="d-import" accept="application/json"></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RULES ================= -->
+    <section id="tab-rules" class="panel">
+      <div class="rules">
+        <div class="league-banner">
+          <b>Our league:</b> 18+ adult, 5-on-5, NFL FLAG / USA Flag rules — <b>except we play with 3 downs instead of 4.</b>
+        </div>
+        <div class="rules-grid" id="rules-grid"></div>
+        <p class="sources">Summarized in our own words from the
+          <a href="https://nflflag.com/coaches/flag-football-rules" target="_blank" rel="noopener">NFL FLAG rules page</a> and the
+          <a href="https://resources.usafootball.com/assets/usawebsite/usa-flag-5's-rulebook_2026.1.pdf" target="_blank" rel="noopener">USA Flag 5’s Rulebook v2026.1</a>.
+          Where the two differ, it’s flagged — confirm with the league or ref before the game.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="print-sheet" class="print-only"></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="js/engine.js"></script>
+  <script src="js/plays.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
