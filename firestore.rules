@@ -1,0 +1,52 @@
+rules_version = '2';
+// B2A playbook — paste into Firebase console → Firestore Database → Rules → Publish.
+// Only signed-in people with a verified email that is on the team's member list can read anything.
+//   coach  : everything, including who has access
+//   editor : everything except the access list
+//   player : read everything; log results; edit their own roster profile; run the scoreboard/series
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function memberPath(team) { return /databases/$(database)/documents/teams/$(team)/members/$(myEmail()); }
+    function isMember(team) { return signedIn() && exists(memberPath(team)); }
+    function myRole(team) { return get(memberPath(team)).data.role; }
+    function isEditor(team) { return isMember(team) && myRole(team) in ['coach', 'editor']; }
+    function isCoach(team) { return isMember(team) && myRole(team) == 'coach'; }
+
+    match /teams/{team} {
+      allow read: if isMember(team);
+      allow get: if signedIn() && resource == null;   // lets a new coach see that the team doesn't exist yet
+      // first-time setup: the first person to open the site claims the team as its owner
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isEditor(team) && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      match /members/{email} {
+        allow read: if isMember(team) || (signedIn() && email == myEmail());
+        allow create: if isCoach(team)
+          || (signedIn() && email == myEmail() && request.resource.data.role == 'coach'
+              && get(/databases/$(database)/documents/teams/$(team)).data.ownerUid == request.auth.uid);
+        allow update, delete: if isCoach(team);
+      }
+
+      match /roster/{pid} {
+        allow read: if isMember(team);
+        allow write: if isEditor(team);
+        allow update: if isMember(team) && get(memberPath(team)).data.playerId == pid;
+      }
+
+      match /games/{gid} {
+        allow read: if isMember(team);
+        allow write: if isEditor(team);
+        allow update: if isMember(team)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['series', 'us', 'them', 'half', 'to']);
+      }
+
+      match /log/{lid} {
+        allow read: if isMember(team);
+        allow create: if isMember(team) && request.resource.data.by == request.auth.uid;
+        allow update, delete: if isEditor(team) || (isMember(team) && resource.data.by == request.auth.uid);
+      }
+    }
+  }
+}

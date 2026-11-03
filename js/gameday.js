@@ -198,6 +198,8 @@
   function renderSync() {
     var d = ST.S.data, g = g0();
     $('#gd-title').innerHTML = g ? '<span>vs</span> ' + esc(g.opp) + ' <small>' + esc(fmtDate(g.date)) + '</small>' : '<small>Create a game to build the weekly plan and track results.</small>';
+    var CL = window.B2A_CLOUD;
+    if (CL && CL.enabled) { $('#gd-sync').innerHTML = '<span class="pill ok">' + ICON('check') + ' Live — changes sync to the whole team instantly</span>'; return; }
     $('#gd-sync').innerHTML = ST.S.dirty ? '<span class="pill warn">● Unpublished changes on this device</span>' : '<span class="pill ok">✓ In sync with the team site' + (d.updated ? ' · ' + new Date(d.updated).toLocaleString() : '') + '</span>';
     $('#ck-token').value = ST.token() ? '••••••••••••' : '';
   }

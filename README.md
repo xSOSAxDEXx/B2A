@@ -13,15 +13,19 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - **Designer** — draw plays, set the throw on a receiver's break, live rules check, save to team plays.
 - **Guide** — strategy (what wins 5v5, QB play, using the center, design principles, 3-down situations, defense, blitzing & flag pulling), coverage cheat sheet, league rules & penalties.
 
-## Sharing game plans & stats with the team
-Changes (game plans, results, ratings, team plays) save on the device that made them. The coach taps **Publish to team** in Game Day → Coach tools, which commits `data/season.json` to this repo; GitHub Pages redeploys and everyone sees it about a minute later.
-One-time setup on the coach's phone: create a fine-grained GitHub token (github.com → Settings → Developer settings → Fine-grained tokens) with access to only the B2A repo and **Contents: Read and write**, then paste it into Coach tools. It's stored only in that browser.
+## Sharing with the team — logins (Firebase)
+The site supports invite-only team logins with live shared data (roster, game plans, assignments, results, ratings, team plays).
+Setup is a one-time ~15 minute job in the free Firebase console — see **[SETUP-FIREBASE.md](SETUP-FIREBASE.md)**.
+- `js/firebase-config.js` — paste the Firebase web config here (`null` = no logins, old local/GitHub-publish mode)
+- `firestore.rules` — paste into Firestore → Rules. Roles: coach (everything + access list), editor (everything else), player (view, log results, scoreboard, own profile)
+
+Until the config is added, the site works as before: changes save on the device and the coach publishes `data/season.json` with a GitHub token from Game Day → Coach tools.
 
 ## Files
 - `js/engine.js` play model, timing (throw on the break, run after catch), rules checker, drawing
 - `js/defense.js` coverage simulation (blitz / man / zone / spy), flag pulls, sacks
 - `js/plays.js`, `js/defense-plays.js` the playbook data
-- `js/store.js` season data + publish; `data/season.json` the team's published data
+- `js/store.js` season data; `js/cloud.js` Firebase sign-in + live sync; `data/season.json` legacy published data
 - `js/app.js` (Plays), `gameday.js`, `stats.js`, `quiz.js`, `designer.js`, `guide-ui.js`, `rules.js`, `guide.js`
 
 No build step — plain HTML/CSS/JS.

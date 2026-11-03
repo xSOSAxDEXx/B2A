@@ -606,3 +606,37 @@ a { color: #7df9ff; }
 .pos-p { color: var(--text); }
 .zone-name { fill: #dcff9e; }
 @media (max-width: 620px) { .alt-row { grid-template-columns: 1fr; } }
+
+/* ===== cloud mode: sign-in gate, user chip, roles ===== */
+.cloud-only { display: none !important; }
+body.cloud .cloud-only { display: block !important; }
+body.cloud .local-only { display: none !important; }
+body.cloud:not(.role-coach) .coach-only { display: none !important; }
+body.role-player .editor-only,
+body.role-player #gd-new-game, body.role-player .plan-add, body.role-player .plan-item .x, body.role-player #gd-notes,
+body.role-player #as-auto, body.role-player [data-auto], body.role-player #ro-add, body.role-player #d-save, body.role-player #v-del,
+body.role-player #v-plan, body.role-player #gd-game { display: none !important; }
+body.role-player .as-row select, body.role-player .rt button, body.role-player #v-rate button { pointer-events: none; opacity: .55; }
+body.gated main, body.gated .top .tabs { visibility: hidden; }
+#gate { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(8,3,24,.72); backdrop-filter: blur(6px); }
+#gate.hidden { display: none; }
+.gate-card { width: 100%; max-width: 380px; background: linear-gradient(180deg, rgba(34,20,72,.97), rgba(22,12,52,.97)); border: 1px solid #6a3fb0; border-radius: 18px; padding: 22px; box-shadow: 0 0 40px rgba(255,62,200,.3); display: flex; flex-direction: column; gap: 10px; }
+.gate-card h2 { margin: 0; font-size: 1.7rem; background: linear-gradient(180deg, #fff, #ff8fe0 55%, #9ef6ff); -webkit-background-clip: text; background-clip: text; color: transparent; font-style: italic; }
+.gate-logo { width: 120px; height: 72px; margin: 0 auto 4px; }
+.gate-card input { background: rgba(18,9,42,.9); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font: 500 .95rem Inter; }
+.gate-card input:focus { outline: 2px solid #2ee6ff; }
+.gate-row { display: flex; gap: 8px; } .gate-row .btn { flex: 1; }
+.gate-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.gate-or::before, .gate-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.gate-msg { color: #ffd23f; background: rgba(255,210,63,.1); border-radius: 8px; padding: 8px 10px; margin: 0; font-size: .88rem; }
+.linkbtn { background: none; border: 0; color: #7df9ff; font: 600 .82rem Inter; cursor: pointer; padding: 4px; }
+.user-chip { display: none; align-items: center; gap: 8px; font-size: .8rem; margin-left: auto; }
+body.cloud .user-chip { display: flex; }
+.uc-name { font-weight: 700; } .uc-role { text-transform: uppercase; font: 700 .65rem Inter; letter-spacing: .08em; padding: 2px 7px; border-radius: 6px; background: var(--grad); color: #fff; }
+.ac-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ac-row { display: grid; grid-template-columns: 1fr 110px 160px 30px; gap: 8px; align-items: center; background: rgba(18,9,42,.7); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.ac-who { display: flex; flex-direction: column; min-width: 0; } .ac-who .muted { font-size: .76rem; overflow: hidden; text-overflow: ellipsis; }
+.ac-row select { appearance: none; -webkit-appearance: none; background: rgba(18,9,42,.9); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font: 500 .84rem Inter; min-width: 0; }
+@media (max-width: 620px) { .ac-row { grid-template-columns: 1fr 1fr; } .ac-who { grid-column: 1 / -1; } .user-chip { width: 100%; justify-content: flex-end; } }
+
+body.cloud .local-only-inline { display: none; }

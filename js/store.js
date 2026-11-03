@@ -34,6 +34,8 @@
   }
 
   function load() {
+    var CL = root.B2A_CLOUD;
+    if (CL && CL.enabled) return CL.start(root.B2A_STORE);
     var local = loadLS(LS_LOCAL, null);
     var url = CFG.path + '?v=' + Date.now();
     return fetch(url, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (remote) {
@@ -52,6 +54,8 @@
     });
   }
   function save(silent) {
+    var CL = root.B2A_CLOUD;
+    if (CL && CL.enabled) { S.data.updated = new Date().toISOString(); if (!silent) emit(); CL.save(S.data); return; }
     S.data.updated = new Date().toISOString();
     S.dirty = true;
     var copy = JSON.parse(JSON.stringify(S.data)); copy._dirty = true;
@@ -62,6 +66,7 @@
     try { localStorage.removeItem(LS_LOCAL); } catch (e) { }
     S.data = normalize(S.remote ? JSON.parse(JSON.stringify(S.remote)) : empty()); S.dirty = false; emit();
   }
+  function replaceData(d) { S.data = normalize(d); S.dirty = false; S.loaded = true; emit(); }
   function on(fn) { S.listeners.push(fn); }
   function emit() { S.listeners.forEach(function (fn) { try { fn(S.data); } catch (e) { console.error(e); } }); }
 
@@ -110,6 +115,7 @@
   function logPlay(entry) {
     var g = game(); if (!g) return null;
     entry.id = uid('l'); entry.ts = new Date().toISOString();
+    var CL = root.B2A_CLOUD; if (CL && CL.enabled && CL.user) { entry.by = CL.user.uid; entry.byName = (CL.member && CL.member.name) || CL.user.displayName || CL.user.email; }
     g.log.push(entry); save(); return entry;
   }
 
@@ -144,7 +150,7 @@
 
   root.B2A_STORE = {
     CFG: CFG, S: S, OFF_RESULTS: OFF_RESULTS, DEF_RESULTS: DEF_RESULTS, resultInfo: resultInfo,
-    load: load, save: save, on: on, discardLocal: discardLocal, publish: publish, download: download, token: token,
+    load: load, save: save, on: on, replaceData: replaceData, discardLocal: discardLocal, publish: publish, download: download, token: token,
     game: game, newGame: newGame, deleteGame: deleteGame, logPlay: logPlay, rating: rating, rate: rate,
     entries: entries, playStats: playStats, successRate: successRate, uid: uid
   };

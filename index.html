@@ -18,6 +18,7 @@
       <span class="logo" id="logo"></span>
       <span class="sub">Flag Playbook<small id="brand-sub">5v5 · Adult 18+ · 3 downs</small></span>
     </div>
+    <div id="user-chip" class="user-chip"></div>
     <nav class="tabs" role="tablist">
       <button class="tab active" data-tab="plays"><i class="ic" data-icon="football"></i><span>Plays</span></button>
       <button class="tab" data-tab="gameday"><i class="ic" data-icon="clipboard"></i><span>Game Day</span></button>
@@ -111,7 +112,7 @@
         </div>
 
         <div class="card span2" id="gd-plan-card">
-          <h3>This week’s game plan <small>— the plays we expect to run. Publish so the whole team sees it.</small></h3>
+          <h3>This week’s game plan <small>— the plays we expect to run.<span class="local-only-inline"> Publish so the whole team sees it.</span></small></h3>
           <div class="plan-cols">
             <div>
               <div class="plan-head"><b>Offense</b>
@@ -177,16 +178,17 @@
           <div class="log-list" id="lg-list"></div>
         </div>
 
-        <div class="card span2 coach">
+        <div class="card span2 coach editor-only">
           <h3>Coach tools</h3>
-          <p class="hint">Everything you change here is saved on this device. <b>Publish</b> commits it to the team site (data/season.json) so every player sees the game plan, ratings and stats about a minute later.</p>
-          <div class="dd-row">
+          <p class="hint local-only">Everything you change here is saved on this device. <b>Publish</b> commits it to the team site (data/season.json) so every player sees the game plan, ratings and stats about a minute later.</p>
+          <p class="hint cloud-only">Live mode: every change saves instantly for the whole team. Manage who can sign in under <b>Roster → Team access</b>.</p>
+          <div class="dd-row local-only">
             <label class="dd grow"><span>GitHub token (fine-grained, B2A repo → Contents: read &amp; write). Stored only on this device.</span><input id="ck-token" type="password" placeholder="github_pat_…" autocomplete="off"></label>
           </div>
           <div class="series-actions">
-            <button class="btn primary" id="ck-publish">⬆ Publish to team</button>
-            <button class="btn" id="ck-download">⬇ Download season.json</button>
-            <button class="btn ghost danger" id="ck-discard">Discard unpublished changes</button>
+            <button class="btn primary local-only" id="ck-publish">⬆ Publish to team</button>
+            <button class="btn" id="ck-download">⬇ Download backup (season.json)</button>
+            <button class="btn ghost danger local-only" id="ck-discard">Discard unpublished changes</button>
             <button class="btn ghost danger" id="ck-delgame">Delete this game</button>
           </div>
         </div>
@@ -220,6 +222,17 @@
           <div class="plan-head"><h3>Team roster <small id="ro-count"></small></h3><button class="btn primary small" id="ro-add">＋ Add player</button></div>
           <div id="ro-form" class="ro-form hidden"></div>
           <div id="ro-list" class="ro-list"></div>
+        </div>
+        <div class="card cloud-only coach-only" id="access-card">
+          <div class="plan-head"><h3>Team access <small>— who can sign in</small></h3></div>
+          <p class="hint"><b>Coach</b>: everything + this list. <b>Editor</b>: edits plays, plans, roster and results. <b>Player</b>: views everything, logs results, edits their own profile. Link each person to their roster entry so “Quiz me” and their profile work.</p>
+          <div class="dd-row">
+            <label class="dd grow"><span>Email</span><input id="ac-email" type="email" placeholder="teammate@gmail.com"></label>
+            <label class="dd"><span>Role</span><select id="ac-role"><option value="player">Player</option><option value="editor">Editor</option><option value="coach">Coach</option></select></label>
+            <label class="dd"><span>Roster player</span><select id="ac-player"></select></label>
+            <button class="btn primary" id="ac-add">Add</button>
+          </div>
+          <div id="ac-list" class="ac-list"></div>
         </div>
         <div class="card">
           <div class="plan-head"><h3>Game plan assignments <small id="as-sub"></small></h3>
@@ -308,6 +321,8 @@
   <div id="print-sheet" class="print-only"></div>
   <div id="toast" class="toast"></div>
 
+  <script src="js/firebase-config.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/defense.js"></script>

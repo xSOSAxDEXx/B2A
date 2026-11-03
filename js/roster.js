@@ -186,7 +186,43 @@
         (p.weaknesses || []).map(function (k) { return '<span class="tag tr-bad">' + esc(TL[k]) + '</span>'; }).join('') + '</div></div></button>';
     }).join('') : '<p class="hint">No players yet. Add the team so you can assign spots on each play.</p>';
   }
-  $('#ro-list').addEventListener('click', function (e) { var c = e.target.closest('.ro-card'); if (c) openForm(player(c.dataset.id)); });
+  $('#ro-list').addEventListener('click', function (e) {
+    var c = e.target.closest('.ro-card'); if (!c) return;
+    var CL = window.B2A_CLOUD;
+    if (CL && CL.enabled && !CL.can('edit') && !(CL.member && CL.member.playerId === c.dataset.id)) { A.toast('You can only edit your own profile.'); return; }
+    openForm(player(c.dataset.id));
+  });
+
+  /* ---------- team access (cloud mode, coach only) ---------- */
+  var ROLE_LABEL = { coach: 'Coach', editor: 'Editor', player: 'Player' };
+  function renderAccess() {
+    var CL = window.B2A_CLOUD; if (!CL || !CL.enabled || CL.role !== 'coach') return;
+    var opts = function (cur) { return '<option value="">— not linked —</option>' + roster().map(function (p) { return '<option value="' + p.id + '"' + (p.id === cur ? ' selected' : '') + '>' + esc((p.number ? '#' + p.number + ' ' : '') + p.name) + '</option>'; }).join(''); };
+    $('#ac-player').innerHTML = opts('');
+    var me = CL.user.email.toLowerCase();
+    $('#ac-list').innerHTML = (CL.members || []).slice().sort(function (a, b) { return (a.role === 'coach' ? 0 : a.role === 'editor' ? 1 : 2) - (b.role === 'coach' ? 0 : b.role === 'editor' ? 1 : 2) || a.email.localeCompare(b.email); }).map(function (m) {
+      return '<div class="ac-row" data-email="' + esc(m.email) + '"><div class="ac-who"><b>' + esc(m.name || m.email.split('@')[0]) + '</b><span class="muted">' + esc(m.email) + (m.email === me ? ' (you)' : '') + '</span></div>' +
+        '<select data-f="role"' + (m.email === me ? ' disabled' : '') + '>' + ['player', 'editor', 'coach'].map(function (r) { return '<option value="' + r + '"' + (m.role === r ? ' selected' : '') + '>' + ROLE_LABEL[r] + '</option>'; }).join('') + '</select>' +
+        '<select data-f="playerId">' + opts(m.playerId) + '</select>' +
+        (m.email === me ? '<span></span>' : '<button class="x" data-rm="1" title="Remove access">✕</button>') + '</div>';
+    }).join('') || '<p class="hint">Only you so far.</p>';
+  }
+  $('#ac-add').addEventListener('click', function () {
+    var CL = window.B2A_CLOUD;
+    CL.addMember($('#ac-email').value, $('#ac-role').value, $('#ac-player').value).then(function () {
+      A.toast('Added. They can sign in at the site with that email now.'); $('#ac-email').value = '';
+    }).catch(function (e) { A.toast(e.message || 'Couldn’t add that person.'); });
+  });
+  $('#ac-list').addEventListener('change', function (e) {
+    var row = e.target.closest('.ac-row'); if (!row) return; var f = {}; f[e.target.dataset.f] = e.target.value || null;
+    window.B2A_CLOUD.updateMember(row.dataset.email, f).then(function () { A.toast('Updated.'); }).catch(function (er) { A.toast(er.message); });
+  });
+  $('#ac-list').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rm]'); if (!b) return; var em = b.closest('.ac-row').dataset.email;
+    if (!confirm('Remove ' + em + '’s access? They’ll be signed out of the team data immediately.')) return;
+    window.B2A_CLOUD.removeMember(em).then(function () { A.toast('Access removed.'); });
+  });
+  A.refreshAccess = function () { if ($('#tab-roster').classList.contains('active')) renderAccess(); };
 
   /* ---------- assignments UI ---------- */
   function playBlock(side, id) {
@@ -243,7 +279,7 @@
     ST.save(); A.toast('Assigned the best fit for every spot.');
   });
 
-  function render() { renderRoster(); renderAssign(); }
+  function render() { renderRoster(); renderAssign(); renderAccess(); }
   A.tabHooks.roster = render;
   ST.on(function () { if ($('#tab-roster').classList.contains('active')) render(); });
 
