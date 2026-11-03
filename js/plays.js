@@ -29,14 +29,14 @@ var B2A_PLAYS = [
   {
     id: 'hot-outs', cat: 'quick', name: 'Hot Outs', formation: 'spread', tags: ['pass', 'quick', 'vs-blitz', 'sideline', 'two-minute'],
     players: {
-      X: { route: { pts: [[2, 4.5], [0.7, 4.5]] } },
+      X: { route: { pts: [[2.3, 4], [1, 5.5]] } },
       Y: { route: { pts: [[7, 5], [7.5, 4.5]] } },
-      Z: { route: { pts: [[23, 4.5], [24.3, 4.5]] } },
+      Z: { route: { pts: [[22.7, 4], [24, 5.5]] } },
       C: { route: { pts: [[14, 1.5], [21, 2.5]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -5.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }],
-    reads: ['Pick a side pre-snap: X out or Z out', 'Y hitch', 'C flat'],
+    reads: ['Pick a side pre-snap: X speed out or Z speed out', 'Y hitch', 'C flat'],
     notes: 'Two-minute call. Catch, turn upfield one step, get out of bounds to stop the clock.'
   },
   {
@@ -166,7 +166,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[3, 2], [20, 2.5]] } },
       Z: { route: { pts: [[22, 5], [5, 5]] } },
       Y: { route: { pts: [[4, 1], [2, 6], [2, 18]] } },
-      C: { route: { pts: [[12.5, 7], [12, 7]], delay: 0.5 } },
+      C: { route: { pts: [[10.5, 3], [11, 7]], delay: 0.4 } },
       QB: { route: { pts: [[12.5, -6]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Z', brk: 0 }],
@@ -179,7 +179,7 @@ var B2A_PLAYS = [
       Z: { route: { pts: [[20, 5], [15, 9]] } },
       Y: { route: { pts: [[18.5, 1], [23.5, 3]] } },
       X: { route: { pts: [[22, 6], [24, 14]] } },
-      C: { route: { pts: [[12.5, 4], [6, 6]], delay: 0.3 } },
+      C: { route: { pts: [[10.5, 2], [6, 6]], delay: 0.3 } },
       QB: { route: { pts: [[12.5, -6]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'Z', brk: 0 }],
@@ -362,7 +362,7 @@ var B2A_PLAYS = [
       X: { route: { pts: [[3, 5], [20, 5.5]] } },
       Z: { route: { pts: [[22, 6.5], [5, 6.5]] } },
       Y: { route: { pts: [[7, 7], [7, 16]] } },
-      C: { route: { pts: [[12.5, 6], [12, 6]], delay: 0.5 } },
+      C: { route: { pts: [[10.5, 3], [11, 6]], delay: 0.4 } },
       QB: { route: { pts: [[12.5, -5.5]] } }
     },
     events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }],

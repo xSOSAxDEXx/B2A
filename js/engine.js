@@ -69,23 +69,41 @@
 
   /* Movement model: players accelerate off the line (first leg slower) and lose time at every cut
      (sharper cut = longer plant). A track is a list of {p, t} waypoints; position is interpolated. */
-  var ACCEL_PEN = 0.28, CUT_PEN = 0.28;
+  var ACCEL_PEN = 0.28, CUT_PEN = 0.15;
   function makeTrack(start, pts, delay, speed, opts) {
+    // Cuts are rounded: the player eases into the break, swings through it slower, and accelerates out —
+    // he never stands still unless the route ends there (a designed sit).
     opts = opts || {};
-    var track = [{ p: start.slice(), t: delay }], t = delay, prevDir = null, arrive = [];
-    var all = [start].concat(pts);
-    for (var i = 1; i < all.length; i++) {
+    var all = [start].concat(pts), n = all.length;
+    var track = [{ p: start.slice(), t: delay }], t = delay, arrive = [], cur = start.slice(), first = !opts.noAccel;
+    function unit(a, b) { var L = dist(a, b) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; }
+    for (var i = 1; i < n; i++) {
       var a = all[i - 1], b = all[i], L = dist(a, b);
       if (L < 1e-6) { arrive.push(t); continue; }
-      var dir = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
-      if (prevDir && !opts.noCuts) {
-        var cos = Math.max(-1, Math.min(1, dir[0] * prevDir[0] + dir[1] * prevDir[1]));
-        var pause = Math.min(0.38, CUT_PEN * Math.acos(cos) / (Math.PI / 2));
-        if (pause > 0.03) { t += pause; track.push({ p: a.slice(), t: t }); }
+      var din = unit(a, b), dout = null, ang = 0, r = 0;
+      var j = i + 1; while (j < n && dist(b, all[j]) < 1e-6) j++;
+      if (j < n && !opts.noCuts) {
+        dout = unit(b, all[j]);
+        ang = Math.acos(Math.max(-1, Math.min(1, din[0] * dout[0] + din[1] * dout[1])));
+        if (ang > 0.12) r = Math.min(1.1, dist(cur, b) / 2, dist(b, all[j]) / 2);
       }
-      t += L / speed + (prevDir || opts.noAccel ? 0 : ACCEL_PEN);
-      track.push({ p: b.slice(), t: t }); arrive.push(t);
-      prevDir = dir;
+      var entry = r ? [b[0] - din[0] * r, b[1] - din[1] * r] : b.slice();
+      t += dist(cur, entry) / speed + (first ? ACCEL_PEN : 0); first = false;
+      track.push({ p: entry, t: t });
+      if (r) {
+        var exit = [b[0] + dout[0] * r, b[1] + dout[1] * r];
+        var cornerT = 2 * r / speed + Math.min(0.2, CUT_PEN * ang / (Math.PI / 2));
+        var K = 8, w = [], W = 0, k;
+        for (k = 1; k <= K; k++) { var um = (k - 0.5) / K, wk = 1 + 0.8 * Math.sin(Math.PI * um); w.push(wk); W += wk; }
+        var t0 = t;
+        for (k = 1; k <= K; k++) {
+          var u = k / K, q = 1 - u;
+          t += cornerT * w[k - 1] / W;
+          track.push({ p: [q * q * entry[0] + 2 * q * u * b[0] + u * u * exit[0], q * q * entry[1] + 2 * q * u * b[1] + u * u * exit[1]], t: t });
+          if (k === K / 2) arrive.push(t);
+        }
+        cur = exit;
+      } else { arrive.push(t); cur = b.slice(); }
     }
     return { track: track, arrive: arrive, end: t };
   }
@@ -105,9 +123,10 @@
     if (u[1] > -0.2) {
       var k = 4;
       if (u[0] < 0) k = Math.min(k, (p[0] - lim) / -u[0]); else if (u[0] > 0) k = Math.min(k, (FIELD.W - lim - p[0]) / u[0]);
-      if (k > 0.3) { p = [p[0] + u[0] * k, p[1] + u[1] * k]; out.push(p.slice()); }
+      if (k > 1.2) { p = [p[0] + u[0] * k, p[1] + u[1] * k]; out.push(p.slice()); }
     }
-    out.push([p[0], Math.min(FIELD.YMAX - 0.5, p[1] + 7)]);
+    p = [Math.max(lim, Math.min(FIELD.W - lim, p[0])), p[1]];
+    out.push([p[0], Math.min(FIELD.YMAX + 6, p[1] + 14)]);   // keep running upfield well past the catch
     return out;
   }
   function isSit(rt, start) {
