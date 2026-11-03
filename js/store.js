@@ -19,7 +19,7 @@
   ];
   function resultInfo(side, k) { return (side === 'def' ? DEF_RESULTS : OFF_RESULTS).filter(function (r) { return r.k === k; })[0] || { label: k, ok: false }; }
 
-  function empty() { return { version: 1, updated: null, teamPlays: [], ratings: {}, opponents: [], games: [], activeGame: null }; }
+  function empty() { return { version: 1, updated: null, teamPlays: [], ratings: {}, opponents: [], games: [], activeGame: null, roster: [] }; }
   function uid(p) { return (p || 'g') + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
   function loadLS(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
   function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -29,7 +29,7 @@
   function normalize(d) {
     var e = empty(); d = d || {};
     Object.keys(e).forEach(function (k) { if (d[k] == null) d[k] = e[k]; });
-    d.games.forEach(function (g) { g.plan = g.plan || { off: [], def: [] }; g.log = g.log || []; g.us = g.us || 0; g.them = g.them || 0; });
+    d.games.forEach(function (g) { g.plan = g.plan || { off: [], def: [] }; g.log = g.log || []; g.us = g.us || 0; g.them = g.them || 0; g.assign = g.assign || { off: {}, def: {} }; });
     return d;
   }
 
@@ -101,8 +101,8 @@
     opp = (opp || '').trim() || 'Opponent';
     if (S.data.opponents.indexOf(opp) < 0) S.data.opponents.push(opp);
     var prev = S.data.games.slice().reverse().filter(function (g) { return g.opp === opp; })[0];
-    var g = { id: uid('g'), opp: opp, date: date || new Date().toISOString().slice(0, 10), us: 0, them: 0, plan: { off: [], def: [] }, notes: '', log: [], series: { down: 1, sit: 'own' }, half: 1, to: { 1: false, 2: false } };
-    if (prev) g.plan = JSON.parse(JSON.stringify(prev.plan));   // start from last plan vs this team
+    var g = { id: uid('g'), opp: opp, date: date || new Date().toISOString().slice(0, 10), us: 0, them: 0, plan: { off: [], def: [] }, assign: { off: {}, def: {} }, notes: '', log: [], series: { down: 1, sit: 'own' }, half: 1, to: { 1: false, 2: false } };
+    if (prev) { g.plan = JSON.parse(JSON.stringify(prev.plan)); g.assign = JSON.parse(JSON.stringify(prev.assign || { off: {}, def: {} })); }   // start from last plan vs this team
     S.data.games.push(g); S.data.activeGame = g.id; save();
     return g;
   }

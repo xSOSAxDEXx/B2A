@@ -253,6 +253,7 @@
       info += '<div class="card"><h3>Progression</h3><ol class="reads">' + ((p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>') + '</ol></div>';
       info += '<div class="card"><h3>Coaching points</h3><p>' + esc(p.notes || '—') + '</p>' + (p.events.some(function (e) { return e.brk != null; }) ? '<p class="hint">● Yellow dot = where the QB lets it go (receiver’s break). Dotted tail = run after the catch.</p>' : '') + '</div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'off') + '</div>';
+      if (window.APP && APP.assignmentCardHTML) info += APP.assignmentCardHTML(id, 'off');
       info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + res.issues.map(function (i) { return '<li class="' + i.level + '">' + esc(i.msg) + '</li>'; }).join('') + '</ul></div>';
     } else {
       base = findDef(id); if (!base) { base = defPlays()[0]; view.defId = base.id; }
@@ -267,6 +268,7 @@
       info += '<div class="card"><h3>Coaching keys</h3><ul class="reads">' + d.keys.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>';
       info += '<div class="card"><h3>Strengths / weaknesses</h3><p><b class="good">+</b> ' + esc(d.strengths) + '</p><p><b class="bad">−</b> ' + esc(d.weaknesses) + '</p></div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'def') + '</div>';
+      if (window.APP && APP.assignmentCardHTML) info += APP.assignmentCardHTML(id, 'def');
       var bl = d.defenders.filter(function (x) { return x.job === 'blitz'; });
       info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + (bl.length ? bl.map(function (b) {
         var off = Math.abs(b.start[0] - 12.5), ok = off >= 1 && b.start[1] >= 7;

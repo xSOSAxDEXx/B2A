@@ -433,3 +433,46 @@ h3 .vw-icon { width: 1.3em; height: 1.3em; margin-right: 4px; }
 .lg-item { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .legend { gap: 18px; }
 .log-item .vw-icon { margin-right: 4px; }
+
+/* ===== roster ===== */
+.roster-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 14px; align-items: start; }
+.ro-form { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.tr-label { font: 700 .7rem Inter; text-transform: uppercase; letter-spacing: .08em; margin: 10px 0 6px; }
+.trait-picks { display: flex; flex-wrap: wrap; gap: 5px; }
+.trait-picks .chip.on { background: var(--text); color: var(--bg); }
+.trait-picks[data-name="strengths"] .chip.on { background: #143d24; color: var(--ok); border-color: var(--ok); }
+.trait-picks[data-name="weaknesses"] .chip.on { background: #451a1a; color: var(--danger); border-color: var(--danger); }
+.ro-list { display: flex; flex-direction: column; gap: 6px; }
+.ro-card { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 8px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ro-card:hover { border-color: #3b5a48; }
+.ro-num { font: 800 1.6rem 'Barlow Condensed'; text-align: center; background: linear-gradient(135deg, #ff3ec8, #2ee6ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ro-body { display: flex; flex-direction: column; gap: 2px; }
+.ro-body .muted { font-size: .8rem; }
+.tag.tr-good { background: #143d24; color: var(--ok); text-transform: none; }
+.tag.tr-bad { background: #451a1a; color: #fca5a5; text-transform: none; }
+.as-play { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+.as-head { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 8px; border-bottom: 1px solid var(--line); }
+.as-head .thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; background: var(--turf); }
+.as-head .thumb svg { width: 100%; height: 100%; }
+.as-head > div:nth-child(2) { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.as-head .num { color: var(--accent); margin-right: 6px; }
+.as-head .muted { font-size: .78rem; }
+.pill { background: var(--card); color: var(--muted); }
+.as-rows { padding: 4px 8px 8px; }
+.as-row { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.as-row:last-child { border-bottom: 0; }
+.as-role { font: 800 .9rem Inter; color: var(--accent); padding-top: 9px; }
+.as-row select { appearance: none; -webkit-appearance: none; width: 100%; background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23c6f432' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 10px center; color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 8px 30px 8px 10px; font: 500 .9rem Inter; }
+.as-row.has-warn select { border-color: var(--warn); }
+.as-needs { font-size: .74rem; color: var(--muted); margin-top: 4px; }
+.as-w { font-size: .8rem; color: #fde68a; margin-top: 3px; }
+.as-g { font-size: .8rem; color: var(--ok); margin-top: 3px; }
+.as-sum { padding: 8px 12px; border-radius: 10px; background: var(--bg2); margin-bottom: 10px; font-weight: 600; }
+.as-sum.warn { background: #3d3214; color: var(--warn); } .as-sum.ok { background: #143d24; color: var(--ok); }
+.pi-warn { font-size: .76rem; color: var(--warn); } .pi-ok { font-size: .76rem; color: var(--ok); }
+.as-mini { list-style: none; margin: 0 0 10px; padding: 0; }
+.as-mini li { display: grid; grid-template-columns: 34px 1fr; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.as-mini li b { color: var(--accent); }
+.as-mini li em { grid-column: 2; font-style: normal; font-size: .78rem; color: #fde68a; }
+.as-mini li.w span { color: #fde68a; }
+@media (max-width: 980px) { .roster-grid { grid-template-columns: 1fr; } }

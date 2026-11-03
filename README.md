@@ -9,6 +9,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - **Game Day** — create the week's game (opponent + date), build the offensive/defensive game plan, scoreboard, 3-down series tracker, play-call suggestions (game plan + situation + our success rates + ratings), and a one-tap results log.
 - **Stats** — record, matchups, success rate by play, by down, and takeaways — filter by opponent and offense/defense.
 - **Quiz** — pick a position (QB, C, X, Y, Z, defender, blitzer); questions come from this week's game plan: which route you run, who's the target, when the ball comes out, who's open vs a coverage, which call stops their play, your job in a coverage, and league rules.
+- **Roster** — players (name, number, primary offense / defense position, strengths & weaknesses) and an assignment board for every play in the week’s game plan. Each spot’s demands are read from the play (target, deep route, thrower, ball carrier, blitz / man / zone) and the coach is warned about weakness matches, out-of-position players and double-assigned players. Auto-assign picks the best fits.
 - **Designer** — draw plays, set the throw on a receiver's break, live rules check, save to team plays.
 - **Guide** — strategy (what wins 5v5, QB play, using the center, design principles, 3-down situations, defense, blitzing & flag pulling), coverage cheat sheet, league rules & penalties.
 

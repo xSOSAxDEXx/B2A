@@ -23,6 +23,7 @@
       <button class="tab" data-tab="gameday"><i class="ic" data-icon="clipboard"></i><span>Game Day</span></button>
       <button class="tab" data-tab="stats"><i class="ic" data-icon="chart"></i><span>Stats</span></button>
       <button class="tab" data-tab="quiz"><i class="ic" data-icon="brain"></i><span>Quiz</span></button>
+      <button class="tab" data-tab="roster"><i class="ic" data-icon="users"></i><span>Roster</span></button>
       <button class="tab" data-tab="designer"><i class="ic" data-icon="pen"></i><span>Designer</span></button>
       <button class="tab" data-tab="guide"><i class="ic" data-icon="book"></i><span>Guide</span></button>
     </nav>
@@ -212,6 +213,24 @@
       <div id="quiz-root"></div>
     </section>
 
+    <!-- ================= ROSTER ================= -->
+    <section id="tab-roster" class="panel">
+      <div class="roster-grid">
+        <div class="card">
+          <div class="plan-head"><h3>Team roster <small id="ro-count"></small></h3><button class="btn primary small" id="ro-add">＋ Add player</button></div>
+          <div id="ro-form" class="ro-form hidden"></div>
+          <div id="ro-list" class="ro-list"></div>
+        </div>
+        <div class="card">
+          <div class="plan-head"><h3>Game plan assignments <small id="as-sub"></small></h3>
+            <div class="plan-add"><button class="btn small" id="as-auto">Auto-assign best fits</button></div></div>
+          <p class="hint">Pick who plays each spot on every play in this week’s plan. Warnings appear when the spot asks for something listed as that player’s weakness, or when he’s out of position.</p>
+          <div id="as-warn-sum"></div>
+          <div id="as-list"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= DESIGNER ================= -->
     <section id="tab-designer" class="panel">
       <div class="designer">
@@ -301,6 +320,7 @@
   <script src="js/gameday.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/quiz.js"></script>
+  <script src="js/roster.js"></script>
   <script src="js/designer.js"></script>
   <script src="js/guide-ui.js"></script>
   <script src="js/boot.js"></script>

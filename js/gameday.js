@@ -41,7 +41,7 @@
     var p = side === 'off' ? A.findOff(id) : A.findDef(id); if (!p) return '';
     var s = ST.playStats({ side: side })[id], r = ST.rating(id);
     return '<div class="plan-item" data-id="' + esc(id) + '" data-side="' + side + '"><div class="thumb">' + A.thumb(p, [-6, 16]) + '</div>' +
-      '<div class="pi-body"><b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b><span class="muted">' + (s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet') + (r ? ' · ' + ICON(r > 0 ? 'up' : 'down') : '') + '</span></div>' +
+      '<div class="pi-body"><b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b><span class="muted">' + (s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet') + (r ? ' · ' + ICON(r > 0 ? 'up' : 'down') : '') + '</span>' + (function () { var rep = A.playReport && A.playReport(side, id); if (!rep || !ST.S.data.roster.length) return ''; return rep.warnCount ? '<span class="pi-warn">' + ICON('warn') + ' ' + rep.warnCount + ' fit warning' + (rep.warnCount > 1 ? 's' : '') + '</span>' : rep.open ? '<span class="muted">' + rep.open + ' spots open</span>' : '<span class="pi-ok">' + ICON('check') + ' assigned</span>'; })() + '</div>' +
       '<button class="x" data-rm="1" title="Remove">✕</button></div>';
   }
   function renderPlan() {
