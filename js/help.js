@@ -24,7 +24,7 @@
     { id: 'player', icon: 'bolt', title: 'Player quick-start (do this before every game)', body:
       '<ol>' +
       '<li><b>Game Day</b> → check the opponent and <b>this week’s game plan</b>.</li>' +
-      '<li><b>Plays</b> → open each play in the plan and tap <b>▶ Run play</b>. Watch <i>your</i> letter. Try the <b>Against defense</b> dropdown to see how it plays out vs different coverages, and <b>QB throws to</b> to see what happens if the ball goes to another receiver (pick <i>Best read</i> to let it find the open man).</li>' +
+      '<li><b>Plays</b> → open each play in the plan and tap <b>▶ Run play</b>. Watch <i>your</i> letter. Try the <b>Against defense</b> dropdown to see how it plays out vs different coverages, and <b>QB throws to</b> to see what happens if the ball goes to another receiver (pick <i>Best read</i> to let it find the open man). <b>QB after the snap</b> rolls the QB out left or right so he throws on the run. Tap <b>✎ Adjust routes &amp; catch spot</b> to drag the <b>📍 pin</b> along the target’s route (where he catches it) and drag the dots to reshape routes — the result updates as you drag. It’s all view-only until someone taps <b>Edit copy</b>; <b>Reset changes</b> puts it back.</li>' +
       '<li>Look at the <b>Who’s playing it</b> card on each play to see your spot.</li>' +
       '<li><b>Quiz</b> → <b>Quiz me on my spots</b> → pick your name. It only asks about the spots you’re assigned this week.</li>' +
       '<li><b>Roster</b> → tap your own card to update your positions, strengths and weaknesses.</li>' +

@@ -63,7 +63,8 @@
     this.svg.setAttribute('viewBox', E.viewBox());
     this.svg.innerHTML = E.fieldSVG(this.sim.P, { uid: this.uid }) +
       (this.dsim ? D.assignmentsSVG(this.dsim, this.sim, { faint: !defMode }) : '') +
-      E.routesSVG(this.sim, { uid: this.uid, ghost: defMode }) + '<g class="dyn"></g>';
+      E.routesSVG(this.sim, { uid: this.uid, ghost: defMode }) + '<g class="dyn"></g>' +
+      (this.overlay ? '<g class="edit-layer">' + this.overlay(this) + '</g>' : '');
     this.dyn = this.svg.querySelector('.dyn');
     this.t = this.sim.tStart;
     this.draw();
@@ -86,13 +87,14 @@
       if (!self.running) return;
       self.t += Math.min(0.1, (now - last) / 1000) * self.speed; last = now;
       if (self.t >= self.tEnd) { self.t = self.tEnd; self.running = false; }
+      self.svg.classList.toggle('running', self.running);
       self.draw();
       if (self.running) self.raf = requestAnimationFrame(loop);
     }
     this.raf = requestAnimationFrame(loop);
     this.draw();
   };
-  Animator.prototype.stop = function () { this.running = false; cancelAnimationFrame(this.raf); };
+  Animator.prototype.stop = function () { this.running = false; this.svg.classList.remove('running'); cancelAnimationFrame(this.raf); };
   Animator.prototype.reset = function () { this.stop(); this.t = this.sim.tStart; this.draw(); };
   Animator.prototype.seek = function (f) { this.stop(); this.t = this.sim.tStart + f * (this.tEnd - this.sim.tStart); this.draw(); };
 
@@ -119,7 +121,7 @@
   }
 
   /* ================= PLAYS TAB ================= */
-  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {} };
+  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false };
 
   var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([['team', 'Team plays (designed)'], ['t:pass', '— Pass plays'], ['t:run', '— Runs'], ['t:vs-blitz', '— vs blitz'], ['t:vs-man', '— vs man'], ['t:vs-zone', '— vs zone'], ['t:third-down', '— 3rd down'], ['t:short-yardage', '— Short yardage']]);
   var DEF_FILTERS = [['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'], ['t:no-blitz', 'No blitz'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']];
@@ -227,10 +229,27 @@
     if (c === 'best') { var d = vsDefense(); return d ? bestTarget(p, d) : ''; }
     return c;
   }
+  /* view-only tweaks per play: dragged route points (stored unflipped), pinned catch spot, QB rollout */
+  function mods(id) { id = id || view.id; return view.mods[id] || (view.mods[id] = { pts: {}, at: null, atFor: null, roll: '' }); }
+  function hasMods(id) { var m = view.mods[id || view.id]; return !!(m && (Object.keys(m.pts).length || m.at != null || m.roll)); }
+  function rollQB(p, dir) {
+    var qb = p.players.QB, s0 = qb.start, k = dir === 'L' ? -1 : 1, W = E.FIELD.W;
+    function cx(x) { return Math.max(1.5, Math.min(W - 1.5, x)); }
+    qb.route = { sit: false, delay: 0.35, speed: 5.5, pts: [[cx(s0[0] + k * 1.5), s0[1] - 1.2], [cx(s0[0] + k * 7.5), s0[1] + 0.3], [cx(s0[0] + k * 10), Math.min(-1.5, s0[1] + 2)]] };
+  }
+  function moddedOff() {   // routes + flip + rollout, before choosing the throw target
+    var base = findOff(view.id) || offPlays()[0], p = E.normalizePlay(base), m = view.mods[base.id];
+    if (m) Object.keys(m.pts).forEach(function (r) { p.players[r].route.pts = E.clone(m.pts[r]); });
+    if (view.flip) p = E.flipPlay(p);
+    if (m && m.roll && canRetarget(p)) rollQB(p, m.roll);
+    return p;
+  }
   function fillThrowSelect(p) {
     var wrap = $('#v-throw-wrap'), sel = $('#v-throw');
     var ok = view.side === 'off' && canRetarget(p), tg = ok ? throwTargets(p) : [];
     wrap.classList.toggle('hidden', !ok || tg.length < 2);
+    $('#v-tweak').classList.toggle('hidden', view.side !== 'off');
+    $('#v-roll-wrap').classList.toggle('hidden', !ok);
     if (!ok) return;
     var drawn = p.events[0].to, d = vsDefense(), c = view.throwTo[view.id] || '';
     if (c === 'best' && !d) c = '';
@@ -239,9 +258,96 @@
       (d ? '<option value="best">Best read vs ' + esc(d.name) + ' → ' + bestTarget(p, d) + '</option>' : '');
     sel.value = c;
   }
-  $('#v-throw').addEventListener('change', function (e) { view.throwTo[view.id] = e.target.value; select(view.id); });
+  $('#v-throw').addEventListener('change', function (e) { view.throwTo[view.id] = e.target.value; var m = mods(); m.at = null; m.atFor = null; select(view.id); });
+  $('#v-roll').addEventListener('change', function (e) { mods().roll = e.target.value; select(view.id); });
+  $('#v-adjust').addEventListener('click', function () { view.adjust = !view.adjust; select(view.id); });
+  $('#v-tweak-reset').addEventListener('click', function () { delete view.mods[view.id]; view.throwTo[view.id] = ''; select(view.id); });
 
-  function currentOff() { var p = findOff(view.id) || offPlays()[0]; p = view.flip ? E.flipPlay(p) : p; return canRetarget(p) ? retarget(p, throwChoice(p)) : p; }
+  function currentOff() {
+    var p = moddedOff(); if (!canRetarget(p)) return p;
+    p = retarget(p, throwChoice(p));
+    var m = view.mods[view.id];
+    if (m && m.at != null && m.atFor === p.events[0].to) { p = E.clone(p); p.events[0].at = m.at; }
+    return p;
+  }
+
+  /* ---- Adjust mode: drag route points; slide the 📍 catch pin along the target's route ---- */
+  function fieldPt(e) {
+    var svg = $('#field'), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    var l = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return [l.x / E.FIELD.S, E.FIELD.YMAX - l.y / E.FIELD.S];
+  }
+  function alongPoly(poly, p) {   // distance along the polyline of the point on it nearest to p
+    var best = Infinity, at = 0, run = 0;
+    for (var i = 1; i < poly.length; i++) {
+      var a = poly[i - 1], b = poly[i], L = E.dist(a, b); if (!L) continue;
+      var k = Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / (L * L)));
+      var d = E.dist(p, [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+      if (d < best) { best = d; at = run + k * L; }
+      run += L;
+    }
+    return at;
+  }
+  function pinInfo(sim) {
+    var ev = sim.P.events[0];
+    if (!ev || ev.type !== 'pass' || ev.from !== 'QB' || !sim.P.players[ev.to].route.pts.length) return null;
+    var poly = [sim.routeStart(ev.to)].concat(sim.P.players[ev.to].route.pts);
+    return { r: ev.to, poly: poly, pt: ev.pinPt || ev.catchPt, ev: ev };
+  }
+  viewer.overlay = function (a) {
+    if (view.side !== 'off' || !view.adjust) return '';
+    var sim = a.sim, s = '', sx = E.sx, sy = E.sy;
+    ['X', 'Y', 'Z', 'C'].forEach(function (r) {
+      sim.P.players[r].route.pts.forEach(function (q) { s += '<circle cx="' + sx(q[0]) + '" cy="' + sy(q[1]) + '" r="7" class="rt-handle" stroke="' + E.COLORS[r] + '"/>'; });
+    });
+    var pi = pinInfo(sim);
+    if (pi) {
+      s += '<polyline points="' + pi.poly.map(function (q) { return sx(q[0]) + ',' + sy(q[1]); }).join(' ') + '" class="pin-track"/>';
+      var x = sx(pi.pt[0]), y = sy(pi.pt[1]);
+      s += '<g class="pin-handle"><circle cx="' + x + '" cy="' + y + '" r="16" class="pin-hit"/><path d="M' + x + ',' + y + ' l-7,-15 a8,8 0 1,1 14,0 z" class="pin-body"/><circle cx="' + x + '" cy="' + (y - 18) + '" r="3" class="pin-dot"/></g>';
+    }
+    return s;
+  };
+  var drag = null;
+  $('#field').addEventListener('pointerdown', function (e) {
+    if (view.side !== 'off' || !view.adjust || !viewer.sim) return;
+    viewer.stop(); if (viewer.t !== viewer.sim.tStart) { viewer.t = viewer.sim.tStart; viewer.draw(); }
+    var pt = fieldPt(e), sim = viewer.sim, pi = pinInfo(sim);
+    if (pi && E.dist(pt, [pi.pt[0], pi.pt[1] + 0.6]) < 1.8) drag = { kind: 'pin', r: pi.r, poly: pi.poly };
+    else {
+      var bd = 1.4;
+      ['X', 'Y', 'Z', 'C'].forEach(function (r) { sim.P.players[r].route.pts.forEach(function (q, i) { var d = E.dist(q, pt); if (d < bd) { bd = d; drag = { kind: 'pt', r: r, i: i }; } }); });
+    }
+    if (!drag) return;
+    e.preventDefault(); $('#field').setPointerCapture(e.pointerId);
+  });
+  $('#field').addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var pt = fieldPt(e), m = mods();
+    if (drag.kind === 'pin') {
+      var L = E.plen(drag.poly), at = Math.max(0.5, Math.min(L, Math.round(alongPoly(drag.poly, pt) * 2) / 2));
+      if (at === m.at && m.atFor === drag.r) return;
+      m.at = at; m.atFor = drag.r;
+    } else {
+      var x = Math.max(0, Math.min(E.FIELD.W, Math.round(pt[0] * 2) / 2)), y = Math.max(-1, Math.min(E.FIELD.YMAX - 0.5, Math.round(pt[1] * 2) / 2));
+      if (view.flip) x = E.FIELD.W - x;
+      if (!m.pts[drag.r]) m.pts[drag.r] = E.clone(E.normalizePlay(findOff(view.id)).players[drag.r].route.pts);
+      var cur = m.pts[drag.r][drag.i]; if (cur[0] === x && cur[1] === y) return;
+      m.pts[drag.r][drag.i] = [x, y];
+    }
+    viewer.load(currentOff(), vsDefense(), 'off'); adjustHint();
+  });
+  function endDrag() { if (drag) { drag = null; select(view.id); } }
+  $('#field').addEventListener('pointerup', endDrag); $('#field').addEventListener('pointercancel', endDrag);
+  function adjustHint() {
+    var h = $('#v-adjust-hint'), on = view.side === 'off' && view.adjust;
+    h.classList.toggle('hidden', !on); if (!on) return;
+    var pi = viewer.sim && pinInfo(viewer.sim), r = viewer.dsim && viewer.dsim.result;
+    h.innerHTML = (pi ? 'Drag the <b>📍 pin</b> along ' + pi.r + '’s route to change where he catches it (the QB throws earlier or later to match). ' : '') +
+      'Drag the <b>dots</b> to reshape routes. View-only — <b>Edit copy</b> saves it as a team play.' +
+      (r ? '<br><b class="adj-res">→ ' + esc(D.describe(r)) + '</b>' : '');
+  }
+
   function currentDef() { var d = findDef(view.defId) || defPlays()[0]; return view.flip ? D.flipDefense(d) : d; }
 
   function fillVsSelect() {
@@ -279,16 +385,21 @@
     var base, info = '';
     if (side === 'off') {
       base = findOff(id); if (!base) { base = offPlays()[0]; view.id = base.id; }
-      fillThrowSelect(view.flip ? E.flipPlay(base) : base);
+      fillThrowSelect(moddedOff());
       var p = currentOff();
+      $('#v-roll').value = (view.mods[view.id] && view.mods[view.id].roll) || '';
+      $('#v-adjust').classList.toggle('on', view.adjust);
+      $('#v-tweak-reset').classList.toggle('hidden', !hasMods() && !view.throwTo[view.id]);
+      $('#field').classList.toggle('adjusting', view.adjust);
       var def = vsDefense();
-      viewer.load(p, def, 'off');
+      viewer.load(p, def, 'off'); adjustHint();
       var f = E.FORMATIONS[p.formation] || {};
       $('#v-name').textContent = base.num + ' · ' + p.name;
       var where = p.ytg ? 'From the ' + p.ytg : (p.ytm ? p.ytm + ' yds from midfield' : 'Open field');
       $('#v-meta').textContent = (f.name || '') + (view.flip ? ' (flipped)' : '') + ' · ' + (isRun(p) ? 'Run' : 'Pass') + ' · ' + where + (CAT_NAME[p.cat] ? ' · ' + CAT_NAME[p.cat] : '');
       var res = E.validate(p);
       var lg = $('#v-legal'); lg.className = 'legal ' + (res.legal ? 'ok' : 'bad'); lg.textContent = res.legal ? '✓ LEGAL' : '✕ RULE ISSUE';
+      if (hasMods()) { var mm = view.mods[view.id], bits = []; if (Object.keys(mm.pts).length) bits.push('routes reshaped (' + Object.keys(mm.pts).join(', ') + ')'); if (mm.at != null && p.events[0] && p.events[0].at != null) bits.push('catch spot pinned ' + mm.at.toFixed(1) + ' yds along ' + mm.atFor + '’s route'); if (mm.roll && canRetarget(p)) bits.push('QB rolls ' + (mm.roll === 'L' ? 'left' : 'right')); if (bits.length) info += '<div class="card span2 throw-note">' + ICON('pen') + ' <span>Adjusted: ' + bits.join(' · ') + '. View-only — tap <b>Edit copy</b> to save it as a team play, or <b>Reset changes</b>.</span></div>'; }
       if (p.events[0] && base.events[0] && p.events[0].to !== base.events[0].to) info += '<div class="card span2 throw-note">' + ICON('target') + ' <span>Showing the throw to <b>' + p.events[0].to + '</b> instead of ' + base.events[0].to + ' (as drawn). This only changes the view — the saved play is unchanged.</span></div>';
       info += '<div class="card"><h3>Progression</h3><ol class="reads">' + ((p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>') + '</ol></div>';
       info += '<div class="card"><h3>Coaching points</h3><p>' + esc(p.notes || '—') + '</p>' + (p.events.some(function (e) { return e.brk != null; }) ? '<p class="hint">● Yellow dot = where the QB lets it go (receiver’s break). Dotted tail = run after the catch.</p>' : '') + '</div>';
@@ -300,7 +411,7 @@
       var d = currentDef();
       var offId = view.vsDef[view.defId] || base.vs;
       var off = findOff(offId) || B2A_PLAYS[0];
-      $('#v-throw-wrap').classList.add('hidden');
+      $('#v-throw-wrap').classList.add('hidden'); $('#v-tweak').classList.add('hidden'); $('#v-adjust-hint').classList.add('hidden'); $('#field').classList.remove('adjusting');
       viewer.load(view.flip ? E.flipPlay(off) : off, d, 'def');
       $('#v-name').textContent = base.num + ' · ' + d.name;
       $('#v-meta').textContent = d.front + ' · vs ' + off.name + (view.flip ? ' (flipped)' : '');

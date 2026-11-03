@@ -669,3 +669,16 @@ body.cloud .local-only-inline { display: none; }
 #v-throw-wrap { min-width: 190px; }
 .throw-note { display: flex; gap: 8px; align-items: center; border-color: #2ee6ff55; }
 .throw-note .vw-icon { width: 20px; height: 20px; flex: none; }
+/* Plays page: adjust mode (route dots, catch pin) */
+#field.adjusting { touch-action: none; cursor: crosshair; }
+#field.running .edit-layer { display: none; }
+.rt-handle { fill: #0c0620; stroke-width: 3; cursor: grab; filter: drop-shadow(0 0 3px currentColor); }
+.pin-track { fill: none; stroke: #ffe14d; stroke-width: 9; stroke-opacity: .18; stroke-linecap: round; stroke-linejoin: round; }
+.pin-handle { cursor: grab; }
+.pin-hit { fill: rgba(255,225,77,.12); stroke: #ffe14d; stroke-width: 2; stroke-dasharray: 3 3; }
+.pin-body { fill: #ff3ec8; stroke: #ffe14d; stroke-width: 1.5; filter: drop-shadow(0 0 4px #ff3ec8); }
+.pin-dot { fill: #ffe14d; }
+.adjust-hint { max-width: 560px; margin: 4px auto 8px; text-align: center; }
+.adjust-hint .adj-res { color: #fff; }
+#v-tweak { flex-wrap: wrap; }
+#v-roll-wrap { min-width: 170px; }

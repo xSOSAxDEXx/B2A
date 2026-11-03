@@ -83,6 +83,12 @@
           <label class="dd grow"><span id="v-vs-label">Against defense</span><select id="v-vs"></select></label>
           <label class="dd" id="v-throw-wrap"><span>QB throws to</span><select id="v-throw"></select></label>
         </div>
+        <div class="controls" id="v-tweak">
+          <label class="dd" id="v-roll-wrap"><span>QB after the snap</span><select id="v-roll"><option value="">Drop back</option><option value="L">Roll out left</option><option value="R">Roll out right</option></select></label>
+          <button id="v-adjust" class="btn toggle">✎ Adjust routes &amp; catch spot</button>
+          <button id="v-tweak-reset" class="btn hidden">⟲ Reset changes</button>
+        </div>
+        <p id="v-adjust-hint" class="hint adjust-hint hidden"></p>
         <div class="controls toggles">
           <button id="v-flip" class="btn toggle">⇆ Flip</button>
           <button id="v-plan" class="btn">＋ Game plan</button>

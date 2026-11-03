@@ -178,7 +178,15 @@
           tracks[e.to].contFrom = rt.pts.length;
           pl.contPts = cont;
         }
-        if (e.brk != null && hasRoute) {
+        if (e.at != null && hasRoute) {
+          // pinned catch spot: a point at distance `at` along the drawn route. Find when he gets there,
+          // then release early enough (from wherever the QB is — on the run too) for the ball to meet him.
+          var tp = polyAt(all, Math.max(0.5, Math.min(plen(all), e.at))), tr0 = tracks[e.to], tBest = tr0.track[0].t, dBest = Infinity;
+          for (var ts = tr0.track[0].t; ts <= tr0.end + 0.01; ts += 0.02) { var dd0 = dist(trackAt(tr0, ts), tp); if (dd0 < dBest - 1e-4) { dBest = dd0; tBest = ts; } }
+          var tt3 = tBest - 0.5;
+          for (var j3 = 0; j3 < 8; j3++) tt3 = tBest - (dist(pos(e.from, tt3), tp) / PASS_SPEED + 0.05);
+          e.t = Math.round(Math.max(ready, tt3) * 100) / 100; e.onBreak = true; e.sit = sit; e.pinned = true; e.pinPt = tp;
+        } else if (e.brk != null && hasRoute) {
           if (sit) {
             // anticipation: release so the ball arrives as he settles/turns
             var tc = routeEnd(e.to), tt2 = tc - 0.6;
@@ -465,7 +473,7 @@
   }
 
   var api = {
-    FIELD: FIELD, ROLES: ROLES, ROLE_NAMES: ROLE_NAMES, COLORS: COLORS, FORMATIONS: FORMATIONS, SNAP_T: SNAP_T,
+    FIELD: FIELD, ROLES: ROLES, polyAt: polyAt, plen: plen, normalizePlay: normalizePlay, ROLE_NAMES: ROLE_NAMES, COLORS: COLORS, FORMATIONS: FORMATIONS, SNAP_T: SNAP_T,
     normalizePlay: normalizePlay, flipPlay: flipPlay, buildSim: buildSim, buildDefense: buildDefense, validate: validate,
     fieldSVG: fieldSVG, routesSVG: routesSVG, playersSVG: playersSVG, staticPlaySVG: staticPlaySVG, viewBox: viewBox,
     sx: sx, sy: sy, dist: dist, clone: clone

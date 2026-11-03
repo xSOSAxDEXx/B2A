@@ -140,11 +140,13 @@
         var when;
         if (e.type === 'pass') {
           var n = D.play.players[e.to].route.pts.length, opts = '';
-          for (var k = 0; k < n; k++) opts += '<option value="' + k + '"' + (e.brk === k ? ' selected' : '') + '>Break @ pt ' + (k + 1) + '</option>';
-          opts += '<option value="t"' + (e.brk == null ? ' selected' : '') + '>Fixed time…</option>';
-          when = '<select data-k="brk">' + opts + '</select>' + (e.brk == null ? '<input data-k="t" type="number" step="0.05" min="0.35" max="7" value="' + (e.t || 1.5) + '">' : '');
+          var pin = e.at != null;
+          if (pin) opts += '<option value="pin" selected>📍 Pinned spot (' + e.at.toFixed(1) + ' yds along route)</option>';
+          for (var k = 0; k < n; k++) opts += '<option value="' + k + '"' + (!pin && e.brk === k ? ' selected' : '') + '>Break @ pt ' + (k + 1) + '</option>';
+          opts += '<option value="t"' + (!pin && e.brk == null ? ' selected' : '') + '>Fixed time…</option>';
+          when = '<select data-k="brk">' + opts + '</select>' + (!pin && e.brk == null ? '<input data-k="t" type="number" step="0.05" min="0.35" max="7" value="' + (e.t || 1.5) + '">' : '');
           var te = timed.filter(function (x) { return x.type === 'pass' && x.to === e.to && x.from === e.from; })[0];
-          if (te && e.brk != null) when += '<span class="ev-t">throw ' + te.t.toFixed(2) + 's</span>';
+          if (te && (pin || e.brk != null)) when += '<span class="ev-t">throw ' + te.t.toFixed(2) + 's</span>';
         } else when = '<input data-k="t" type="number" step="0.05" min="0.35" max="7" value="' + e.t + '">';
         return '<div class="ev-row" data-i="' + i + '"><select data-k="type">' + opt(['handoff', 'pitch', 'pass'], e.type) + '</select><select data-k="from">' + opt(E.ROLES, e.from) + '</select><select data-k="to">' + opt(E.ROLES, e.to) + '</select>' +
           '<div class="ev-when">' + when + '</div><button data-del="' + i + '" title="Remove">✕</button></div>';
@@ -153,7 +155,7 @@
   $('#d-events').addEventListener('change', function (e) {
     var row = e.target.closest('.ev-row'); if (!row) return;
     var ev = D.play.events[+row.dataset.i], k = e.target.dataset.k, v = e.target.value;
-    if (k === 'brk') { if (v === 't') { delete ev.brk; ev.t = ev.t || 1.5; } else ev.brk = +v; }
+    if (k === 'brk') { if (v === 'pin') return; delete ev.at; if (v === 't') { delete ev.brk; ev.t = ev.t || 1.5; } else ev.brk = +v; }
     else if (k === 't') ev.t = Math.max(0.35, +v || 0.35);
     else { ev[k] = v; if (k === 'type' && v === 'pass' && ev.brk == null) ev.brk = 0; if (k === 'type' && v !== 'pass') { delete ev.brk; ev.t = ev.t || 0.6; } }
     render();
@@ -171,7 +173,7 @@
     var p = E.clone(D.play);
     p.name = (p.name || '').trim() || 'Untitled play';
     E.ROLES.forEach(function (r) { var rt = p.players[r].route; rt.pts = rt.pts.map(function (q) { return [+q[0].toFixed(1), +q[1].toFixed(1)]; }); });
-    p.events.forEach(function (e) { if (e.brk != null) delete e.t; });
+    p.events.forEach(function (e) { if (e.brk != null || e.at != null) delete e.t; });
     delete p.flipped; delete p.custom; delete p.num;
     return p;
   }
