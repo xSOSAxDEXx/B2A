@@ -132,6 +132,8 @@ async function page(b, url, opts = {}) {
     await p.reload(); await p.waitForTimeout(500);
     check('reload comes back to the same tab', (await p.evaluate(() => document.querySelector('.tab.active').dataset.tab)) === 'stats');
     check('no script errors in Game Day / Stats', !p.errs.length, p.errs);
+    await p.click('.tab[data-tab="gameday"]');
+    check('test mode: yellow banner shows; no Publish/token/Discard controls', await p.isVisible('#test-banner') && !(await p.$('#ck-publish, #ck-token, #ck-discard')));
     await p.context().close();
   }
 
@@ -170,8 +172,11 @@ async function page(b, url, opts = {}) {
         'teams/b2a/roster/p1': { id: 'p1', name: 'Pat Roster', number: '7', offPos: 'WR', defPos: 'CB' },
         'teams/b2a/games/g1': { id: 'g1', opp: 'Sharks', date: '2026-11-07', us: 0, them: 0, plan: { off: [], def: [] }, assign: { off: {}, def: {} }, series: { down: 1, sit: 'own' }, half: 1, to: {} } };
       Object.defineProperty(navigator, 'standalone', { get: () => true });
+      localStorage.setItem('b2a.ghtoken', '"github_pat_old"');
     };
     const p = await page(b, URL, { viewport: { width: 390, height: 844 }, mock: true, init });
+    check('old GitHub publish token is wiped from the device', (await p.evaluate(() => localStorage.getItem('b2a.ghtoken'))) === null);
+    check('signed-in site never shows the test-mode banner', !(await p.isVisible('#test-banner')));
     check('sign-in screen shows (with the iPhone home-screen note)', await p.isVisible('#g-email') && await p.isVisible('.gate-note'));
     await p.fill('#g-email', 'pat@x.com'); await p.fill('#g-pass', 'secret1'); await p.press('#g-pass', 'Enter'); await p.waitForTimeout(800);
     check('Enter signs in; player role applied', (await p.evaluate(() => document.body.className)).includes('role-player'));
