@@ -22,7 +22,8 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - Project `b2a-playbook` on the free Spark plan; setup steps in **[SETUP-FIREBASE.md](SETUP-FIREBASE.md)**.
 - `js/firebase-config.js` — the Firebase web config (safe to commit; access is controlled by the rules and the team list).
 - `firestore.rules` — paste into Firebase console → Firestore → Rules → Publish after any change. Roles: **coach** (everything + access list), **editor** (all data), **player** (view, log results, scoreboard/downs, own roster profile).
-- Teammates are added in Roster → Team access; data lives in `teams/b2a` (+ `members`, `roster`, `games`, `log`).
+- Teammates are added in Roster → Team access; data lives in `teams/b2a` (+ `members`, `roster`, `games`, `log`, `plays`, `ratings`). Team plays are stored packed as JSON text (Firestore can't store the lists-inside-lists that routes use).
+- Offline: Firestore keeps a copy on each device, so the site opens and saves with no signal and syncs later (header shows “Offline · N to sync”). Signing out wipes that copy.
 - With the config set to `null` the site runs in **test mode**: no logins, nothing saved, yellow banner at the bottom. Only for automated tests — never deploy it that way.
 
 ## Files
@@ -35,7 +36,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - `js/app.js` (Plays tab + shared helpers), `gameday.js`, `stats.js`, `quiz.js`, `roster.js`, `designer.js`, `guide.js`, `guide-ui.js`, `rules.js`, `help.js`, `icons.js`, `boot.js`
 
 ## Testing
-Browser tests live on the `tests` branch (never served by GitHub Pages): `git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from this folder. Run them before every push to `main`.
+Browser tests live on the `tests` branch (never served by GitHub Pages): `git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from this folder. Run them before every push to `main`. After changing `firestore.rules`, also run the security-rules tests in the Firestore emulator (`npm run rules` on that branch).
 
 ## Deploying
 No build step — plain HTML/CSS/JS on GitHub Pages; every push to `main` redeploys in about a minute.

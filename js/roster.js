@@ -137,7 +137,7 @@
     editing = p ? JSON.parse(JSON.stringify(p)) : { id: null, name: '', number: '', offPos: 'WR', defPos: 'CB', offAlt: [], defAlt: [], strengths: [], weaknesses: [], notes: '' };
     ['offAlt', 'defAlt', 'strengths', 'weaknesses'].forEach(function (k) { editing[k] = editing[k] || []; });   // older/imported entries may be missing these
     var f = $('#ro-form'); f.classList.remove('hidden');
-    f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Name</span><input id="rf-name" value="' + esc(editing.name) + '" placeholder="Player name"></label>' +
+    f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Name</span><input id="rf-name" maxlength="60" value="' + esc(editing.name) + '" placeholder="Player name"></label>' +
       '<label class="dd small-in"><span>Number</span><input id="rf-num" type="number" min="0" max="99" value="' + esc(editing.number) + '"></label></div>' +
       '<div class="dd-row"><label class="dd"><span>Primary offense</span><select id="rf-off">' + OFF_POS.map(function (o) { return '<option value="' + o[0] + '"' + (editing.offPos === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label class="dd"><span>Primary defense</span><select id="rf-def">' + DEF_POS.map(function (o) { return '<option value="' + o[0] + '"' + (editing.defPos === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label></div>' +

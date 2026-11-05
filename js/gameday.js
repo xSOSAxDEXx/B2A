@@ -208,10 +208,28 @@
     $('#gd-title').innerHTML = g
       ? '<span>vs</span> ' + esc(g.opp) + ' <small>' + esc(fmtDate(g.date)) + '</small>'
       : '<small>Create a game to build the weekly plan and track results.</small>';
-    $('#gd-sync').innerHTML = A.isLive()
-      ? '<span class="pill ok">' + ICON('check') + ' Live — changes sync to the whole team instantly</span>'
-      : '<span class="pill warn">Test mode — logins are off and nothing is saved</span>';
+    $('#gd-sync').innerHTML = syncPill();
   }
+  /* "Live" / "Offline — N waiting" / "Saving…" — also shown as a small badge in the header on every tab */
+  function syncState() {
+    var CL = window.B2A_CLOUD;
+    if (!A.isLive()) return { kind: 'test' };
+    var n = CL.pending || 0, online = navigator.onLine !== false;
+    return { kind: !online ? 'offline' : n ? 'saving' : 'live', n: n };
+  }
+  function syncPill() {
+    var s = syncState();
+    if (s.kind === 'test') return '<span class="pill warn">Test mode — logins are off and nothing is saved</span>';
+    if (s.kind === 'offline') return '<span class="pill warn">No signal — ' + (s.n ? s.n + ' change' + (s.n > 1 ? 's' : '') + ' saved on this phone, ' : 'changes are saved on this phone and ') + 'will sync when you’re back online</span>';
+    if (s.kind === 'saving') return '<span class="pill">Saving…</span>';
+    return '<span class="pill ok">' + ICON('check') + ' Live — changes sync to the whole team instantly</span>';
+  }
+  A.onSyncChange = function () {
+    var s = syncState(), b = $('#sync-badge');
+    b.className = 'sync-badge ' + (s.kind === 'offline' || s.kind === 'saving' ? s.kind : 'hidden');
+    b.textContent = s.kind === 'offline' ? 'Offline' + (s.n ? ' · ' + s.n + ' to sync' : '') : s.kind === 'saving' ? 'Saving…' : '';
+    $('#gd-sync').innerHTML = syncPill();
+  };
   $('#ck-download').addEventListener('click', ST.download);
   $('#ck-delgame').addEventListener('click', function () {
     var g = g0();

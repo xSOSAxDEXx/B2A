@@ -4,6 +4,8 @@ rules_version = '2';
 //   coach  : everything, including who has access
 //   editor : everything except the access list
 //   player : read everything; log results; edit their own roster profile; run the scoreboard/series
+// Every save is also checked for the right shape (e.g. a score is a number, a rating is +1 or -1),
+// so a bug or a bad import can't write junk into the team data.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
@@ -14,38 +16,78 @@ service cloud.firestore {
     function isEditor(team) { return isMember(team) && myRole(team) in ['coach', 'editor']; }
     function isCoach(team) { return isMember(team) && myRole(team) == 'coach'; }
 
+    // ---- shape checks ----
+    function shortText(v, max) { return v is string && v.size() <= max; }
+    function validTeam(d) {
+      return d.ownerUid is string
+        && (!('opponents' in d) || d.opponents is list)
+        && (!('activeGame' in d) || d.activeGame == null || d.activeGame is string)
+        // teamPlays / ratings: old layout, still allowed while the site moves them to their own documents
+        && (!('teamPlays' in d) || d.teamPlays is list)
+        && (!('ratings' in d) || d.ratings is map);
+    }
+    // a team play is stored packed: its name, when it was made, and the whole play as JSON text
+    function validPlay(d) {
+      return d.keys().hasOnly(['name', 'created', 'data']) && shortText(d.name, 120) && shortText(d.created, 40) && shortText(d.data, 200000);
+    }
+    function validRating(d) { return d.keys().hasOnly(['v']) && d.v in [1, -1]; }
+    function validRoster(d) { return shortText(d.name, 60) && d.name.size() > 0 && d.size() <= 30; }
+    function validGame(d) {
+      return shortText(d.opp, 80) && d.us is number && d.them is number && d.us >= 0 && d.them >= 0 && d.size() <= 30;
+    }
+    function validLog(d) {
+      return d.side in ['off', 'def'] && shortText(d.result, 20) && d.game is string && d.size() <= 30;
+    }
+    function validMember(d) { return d.role in ['coach', 'editor', 'player']; }
+
     match /teams/{team} {
       allow read: if isMember(team);
       allow get: if signedIn() && resource == null;   // lets a new coach see that the team doesn't exist yet
       // first-time setup: the first person to open the site claims the team as its owner
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isEditor(team) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid && validTeam(request.resource.data);
+      allow update: if isEditor(team) && request.resource.data.ownerUid == resource.data.ownerUid && validTeam(request.resource.data);
 
       match /members/{email} {
         allow read: if isMember(team) || (signedIn() && email == myEmail());
-        allow create: if isCoach(team)
+        allow create: if validMember(request.resource.data) && (isCoach(team)
           || (signedIn() && email == myEmail() && request.resource.data.role == 'coach'
-              && get(/databases/$(database)/documents/teams/$(team)).data.ownerUid == request.auth.uid);
-        allow update, delete: if isCoach(team);
+              && get(/databases/$(database)/documents/teams/$(team)).data.ownerUid == request.auth.uid));
+        allow update: if isCoach(team) && validMember(request.resource.data);
+        allow delete: if isCoach(team);
       }
 
       match /roster/{pid} {
         allow read: if isMember(team);
-        allow write: if isEditor(team);
-        allow update: if isMember(team) && get(memberPath(team)).data.playerId == pid;
+        allow create, update: if isEditor(team) && validRoster(request.resource.data);
+        allow delete: if isEditor(team);
+        allow update: if isMember(team) && get(memberPath(team)).data.playerId == pid && validRoster(request.resource.data);
       }
 
       match /games/{gid} {
         allow read: if isMember(team);
-        allow write: if isEditor(team);
-        allow update: if isMember(team)
+        allow create, update: if isEditor(team) && validGame(request.resource.data);
+        allow delete: if isEditor(team);
+        allow update: if isMember(team) && validGame(request.resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['series', 'us', 'them', 'half', 'to']);
       }
 
       match /log/{lid} {
         allow read: if isMember(team);
-        allow create: if isMember(team) && request.resource.data.by == request.auth.uid;
-        allow update, delete: if isEditor(team) || (isMember(team) && resource.data.by == request.auth.uid);
+        allow create: if isMember(team) && request.resource.data.by == request.auth.uid && validLog(request.resource.data);
+        allow update: if (isEditor(team) || (isMember(team) && resource.data.by == request.auth.uid)) && validLog(request.resource.data);
+        allow delete: if isEditor(team) || (isMember(team) && resource.data.by == request.auth.uid);
+      }
+
+      match /plays/{playId} {   // team plays from the Designer
+        allow read: if isMember(team);
+        allow create, update: if isEditor(team) && validPlay(request.resource.data);
+        allow delete: if isEditor(team);
+      }
+
+      match /ratings/{playId} {   // 👍 / 👎 per play
+        allow read: if isMember(team);
+        allow create, update: if isEditor(team) && validRating(request.resource.data);
+        allow delete: if isEditor(team);
       }
     }
   }

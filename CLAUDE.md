@@ -31,4 +31,6 @@ Interactive playbook site for B2A, my flag football team.
 ## Testing
 - Browser tests are on the `tests` branch (not served by GitHub Pages): `git fetch origin tests && git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from the repo folder. Run them before every push to main; update a check in the same session when a feature changes on purpose.
 - With `window.B2A_FIREBASE_CONFIG` set to null (e.g. Playwright addInitScript) the site runs in test mode: no logins, data only in memory, yellow banner. Login flows are tested against an in-memory fake Firebase (`mockfb.js` on the tests branch).
+- After changing firestore.rules, also run the rules tests in the Firestore emulator (`cd ../B2A-tests && npm install && npm run rules`), then tell me to re-publish the rules in the Firebase console.
+- Firestore can't store lists inside lists (route points are [[x, y], …]) — team plays are stored packed as JSON text for that reason.
 - Don't commit screenshots or test files to main.

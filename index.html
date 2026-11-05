@@ -11,13 +11,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- ?v=… on our own files: bump it on every deploy (one value for all) so phones fetch the new files instead of a cached mix of old and new -->
-  <link rel="stylesheet" href="css/styles.css?v=20261105b">
+  <link rel="stylesheet" href="css/styles.css?v=20261105c">
 </head>
 <body>
   <header class="top">
     <div class="brand">
       <span class="logo" id="logo"></span>
       <span class="sub">Flag Playbook<small id="brand-sub">5v5 · Adult 18+ · 3 downs</small></span>
+      <span id="sync-badge" class="sync-badge hidden" role="status"></span>
     </div>
     <div id="user-chip" class="user-chip"></div>
     <nav class="tabs" role="tablist">
@@ -111,7 +112,7 @@
             <button class="btn primary" id="gd-new-game">＋ New game</button>
           </div>
           <div class="new-game hidden" id="gd-new-form">
-            <label class="dd grow"><span>Opponent</span><input id="gd-opp-in" list="gd-opp-list" placeholder="Team name"><datalist id="gd-opp-list"></datalist></label>
+            <label class="dd grow"><span>Opponent</span><input id="gd-opp-in" list="gd-opp-list" placeholder="Team name" maxlength="60"><datalist id="gd-opp-list"></datalist></label>
             <label class="dd"><span>Date</span><input id="gd-date-in" type="date"></label>
             <button class="btn primary" id="gd-create">Create</button>
             <button class="btn ghost" id="gd-cancel">Cancel</button>
@@ -271,7 +272,7 @@
         <div class="d-side">
           <div class="card">
             <h3>Play</h3>
-            <label>Name <input id="d-name" type="text" placeholder="e.g. Trips Smash"></label>
+            <label>Name <input id="d-name" type="text" placeholder="e.g. Trips Smash" maxlength="100"></label>
             <div class="row2">
               <label>Formation <select id="d-form"></select></label>
               <label>Section <select id="d-cat"></select></label>
@@ -328,25 +329,25 @@
   <div id="toast" class="toast"></div>
   <div id="test-banner" class="test-banner">TEST MODE — logins are off and nothing is saved</div>
 
-  <script src="js/util.js?v=20261105b"></script>
-  <script src="js/firebase-config.js?v=20261105b"></script>
-  <script src="js/cloud.js?v=20261105b"></script>
-  <script src="js/icons.js?v=20261105b"></script>
-  <script src="js/engine.js?v=20261105b"></script>
-  <script src="js/defense.js?v=20261105b"></script>
-  <script src="js/plays.js?v=20261105b"></script>
-  <script src="js/defense-plays.js?v=20261105b"></script>
-  <script src="js/rules.js?v=20261105b"></script>
-  <script src="js/guide.js?v=20261105b"></script>
-  <script src="js/store.js?v=20261105b"></script>
-  <script src="js/app.js?v=20261105b"></script>
-  <script src="js/gameday.js?v=20261105b"></script>
-  <script src="js/stats.js?v=20261105b"></script>
-  <script src="js/quiz.js?v=20261105b"></script>
-  <script src="js/roster.js?v=20261105b"></script>
-  <script src="js/designer.js?v=20261105b"></script>
-  <script src="js/guide-ui.js?v=20261105b"></script>
-  <script src="js/help.js?v=20261105b"></script>
-  <script src="js/boot.js?v=20261105b"></script>
+  <script src="js/util.js?v=20261105c"></script>
+  <script src="js/firebase-config.js?v=20261105c"></script>
+  <script src="js/cloud.js?v=20261105c"></script>
+  <script src="js/icons.js?v=20261105c"></script>
+  <script src="js/engine.js?v=20261105c"></script>
+  <script src="js/defense.js?v=20261105c"></script>
+  <script src="js/plays.js?v=20261105c"></script>
+  <script src="js/defense-plays.js?v=20261105c"></script>
+  <script src="js/rules.js?v=20261105c"></script>
+  <script src="js/guide.js?v=20261105c"></script>
+  <script src="js/store.js?v=20261105c"></script>
+  <script src="js/app.js?v=20261105c"></script>
+  <script src="js/gameday.js?v=20261105c"></script>
+  <script src="js/stats.js?v=20261105c"></script>
+  <script src="js/quiz.js?v=20261105c"></script>
+  <script src="js/roster.js?v=20261105c"></script>
+  <script src="js/designer.js?v=20261105c"></script>
+  <script src="js/guide-ui.js?v=20261105c"></script>
+  <script src="js/help.js?v=20261105c"></script>
+  <script src="js/boot.js?v=20261105c"></script>
 </body>
 </html>

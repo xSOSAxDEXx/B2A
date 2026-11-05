@@ -3,9 +3,16 @@
    this file swaps where the data comes from (Firestore snapshots) and where saves go (diffed writes).
 
    Firestore layout (teams/{team}):
-     doc fields  : ownerUid, opponents, activeGame, ratings, teamPlays, updated
+     doc fields  : ownerUid, opponents, activeGame, updated
      members/{email} : role ('coach' | 'editor' | 'player'), playerId, name
-     roster/{playerId}, games/{gameId} (without log), log/{entryId} (with game id) */
+     roster/{playerId}, games/{gameId} (without log), log/{entryId} (with game id),
+     plays/{playId} (team plays, sorted by 'created'), ratings/{playId} ({ v: 1 | -1 })
+   Before Nov 2026 team plays and ratings were fields on the team doc. Until the new firestore.rules are
+   published the site keeps using those fields ("legacy layout"); once they are, the first coach/editor to
+   open the site moves them into their own documents automatically.
+
+   Offline: Firestore keeps a copy on the device, so the site opens and saves with no signal; changes
+   queue up and sync when the connection comes back. Signing out wipes that copy. */
 (function (root) {
   'use strict';
   var CFG = root.B2A_FIREBASE_CONFIG, TEAM = root.B2A_TEAM_ID || 'b2a';
@@ -13,7 +20,10 @@
   var C = { enabled: !!(CFG && CFG.apiKey), user: null, member: null, role: null, members: [], ready: false };
   if (!C.enabled) { root.B2A_CLOUD = C; return; }
 
-  var db, auth, teamRef, unsubs = [], last = {}, parts = { meta: null, roster: {}, games: {}, log: {} }, firstData = null, ST;
+  var db, auth, teamRef, unsubs = [], last = {}, firstData = null, ST;
+  var parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {} };
+  var layout = { known: { plays: false, ratings: false }, server: {}, split: true }, migrating = false;
+  C.pending = 0;   // saves waiting for the server (more than 0 while offline)
 
   function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('Could not load ' + src)); }; document.head.appendChild(s); }); }
   function loadSDK() { return SDK.reduce(function (p, m) { return p.then(function () { return loadScript('https://www.gstatic.com/firebasejs/' + VER + '/firebase-' + m + '-compat.js'); }); }, Promise.resolve()); }
@@ -85,21 +95,48 @@
   }
 
   /* ---------------- data sync ---------------- */
-  function units(d) {
+  function pad3(n) { return ('00' + n).slice(-3); }
+  /* Firestore can't store lists inside lists, and every route is a list of [x, y] points — so a team play
+     is stored as one JSON text field ('data') plus its name and creation time. */
+  function packPlay(p, i) { var created = p.created || '0-' + pad3(i); return { name: p.name || 'Untitled play', created: created, data: JSON.stringify(Object.assign({}, p, { created: created })) }; }
+  function unpackPlay(doc) {
+    if (typeof doc.data !== 'string') return doc;   // already a plain play
+    try { return Object.assign(JSON.parse(doc.data), { id: doc.id }); } catch (e) { return null; }
+  }
+  function units(d) {   // the team data cut into the documents it's stored in, each as a JSON string
     var u = {};
-    u.meta = { opponents: d.opponents || [], activeGame: d.activeGame || null, ratings: d.ratings || {}, teamPlays: d.teamPlays || [] };
+    if (layout.split) {
+      u.meta = { opponents: d.opponents || [], activeGame: d.activeGame || null };
+      (d.teamPlays || []).forEach(function (p, i) { u['plays/' + p.id] = packPlay(p, i); });
+      Object.keys(d.ratings || {}).forEach(function (id) { u['ratings/' + id] = { v: d.ratings[id] }; });
+    } else {
+      u.meta = { opponents: d.opponents || [], activeGame: d.activeGame || null, ratings: d.ratings || {}, teamPlays: (d.teamPlays || []).map(function (p, i) { return Object.assign({ id: p.id }, packPlay(p, i)); }) };
+    }
     (d.roster || []).forEach(function (p) { u['roster/' + p.id] = p; });
     (d.games || []).forEach(function (g) {
       var gg = {}; Object.keys(g).forEach(function (k) { if (k !== 'log') gg[k] = g[k]; });
       u['games/' + g.id] = gg;
-      (g.log || []).forEach(function (l) { var ll = Object.assign({}, l, { game: g.id }); u['log/' + l.id] = ll; });
+      (g.log || []).forEach(function (l) { u['log/' + l.id] = Object.assign({}, l, { game: g.id }); });
     });
     var out = {}; Object.keys(u).forEach(function (k) { out[k] = JSON.stringify(clean(u[k])); });
     return out;
   }
   function refFor(key) { if (key === 'meta') return teamRef; var p = key.split('/'); return teamRef.collection(p[0]).doc(p[1]); }
-  function writeAll(d) {   // write only what changed since the last snapshot
+  function saveFailed(e) {
+    var msg = e && e.code === 'permission-denied' ? 'You don’t have permission to change that — ask the coach for editor access.' : 'Couldn’t save: ' + friendly(e);
+    root.APP && APP.toast(msg);
+    last = {}; rebuild();   // fall back to the server's copy so later saves aren't blocked
+  }
+  function writeAll(d, migrate) {
+    try { return writeChanges(d, migrate); }
+    catch (e) { console.error(e); saveFailed(e); return Promise.resolve(); }   // e.g. data Firestore can't store: say so instead of failing silently
+  }
+  function writeChanges(d, migrate) {   // write only what changed since the last snapshot
     var now = units(d), batch = db.batch(), n = 0, ops = [];
+    if (migrate) {   // team plays + ratings now live in their own documents: clear the old fields
+      var del = firebase.firestore.FieldValue.delete();
+      batch.set(teamRef, { teamPlays: del, ratings: del }, { merge: true }); n++; ops.push('migrate');
+    }
     Object.keys(now).forEach(function (k) {
       if (last[k] === now[k]) return;
       var val = JSON.parse(now[k]);
@@ -112,19 +149,22 @@
     if (!n) return Promise.resolve();
     Object.keys(now).forEach(function (k) { last[k] = now[k]; });
     Object.keys(last).forEach(function (k) { if (!now[k]) delete last[k]; });
-    return batch.commit().catch(function (e) {
-      var msg = e.code === 'permission-denied' ? 'You don’t have permission to change that — ask the coach for editor access.' : 'Couldn’t save: ' + friendly(e);
-      root.APP && APP.toast(msg);
-      last = {}; rebuild();   // fall back to the server's copy
-    });
+    // with no signal this stays pending (the change is already kept on the device) until it reaches the server
+    C.pending++; syncChanged();
+    return batch.commit().then(function () {
+      if (migrate) root.APP && APP.toast('Team plays and ratings moved to the new storage layout.');
+    }, saveFailed).then(function () { C.pending = Math.max(0, C.pending - 1); syncChanged(); });
   }
+  function syncChanged() { root.APP && APP.onSyncChange && APP.onSyncChange(); }
   var pending = false;
+  function byCreated(a, b) { return (a.created || '').localeCompare(b.created || '') || String(a.id).localeCompare(String(b.id)); }
   function rebuild() {
     if (pending) return; pending = true;
     (root.requestAnimationFrame || setTimeout)(function () {
       pending = false;
-      if (!parts.meta) return;
-      var m = parts.meta, d = { version: 1, updated: m.updated || null, teamPlays: m.teamPlays || [], ratings: m.ratings || {}, opponents: m.opponents || [], activeGame: m.activeGame || null, roster: [], games: [] };
+      if (!parts.meta || !layout.known.plays || !layout.known.ratings) return;   // wait until we know which layout the rules allow
+      var m = parts.meta;
+      var d = { version: 1, updated: m.updated || null, opponents: m.opponents || [], activeGame: m.activeGame || null, roster: [], games: [], teamPlays: [], ratings: {} };
       Object.keys(parts.roster).forEach(function (id) { d.roster.push(parts.roster[id]); });
       var logs = {}; Object.keys(parts.log).forEach(function (id) { var l = parts.log[id]; (logs[l.game] = logs[l.game] || []).push(l); });
       Object.keys(parts.games).forEach(function (id) {
@@ -132,19 +172,49 @@
         g.log = (logs[id] || []).sort(function (a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
         d.games.push(g);
       });
-      last = units(d);
+      var legacyPlays = (m.teamPlays || []).map(function (p) { return unpackPlay(Object.assign({}, p)); }).filter(Boolean), legacyRatings = m.ratings || {}, hasLegacy = 'teamPlays' in m || 'ratings' in m;
+      if (layout.split) {
+        // what's really stored in the new documents — the diff for the next save starts from this
+        d.teamPlays = Object.keys(parts.plays).map(function (id) { return unpackPlay(parts.plays[id]); }).filter(Boolean).sort(byCreated);
+        Object.keys(parts.ratings).forEach(function (id) { d.ratings[id] = parts.ratings[id].v; });
+        last = units(d);
+        // anything still in the old fields is shown too (and moved over below when an editor is signed in)
+        legacyPlays.forEach(function (p, i) { if (!parts.plays[p.id]) d.teamPlays.push(Object.assign({}, p, { created: p.created || '0-' + pad3(i) })); });
+        d.teamPlays.sort(byCreated);
+        Object.keys(legacyRatings).forEach(function (id) { if (!(id in d.ratings)) d.ratings[id] = legacyRatings[id]; });
+      } else {
+        d.teamPlays = legacyPlays; d.ratings = legacyRatings;
+        last = units(d);
+      }
       ST.replaceData(d);
       if (firstData) { var f = firstData; firstData = null; f(); }
+      if (layout.split && layout.server.plays && layout.server.ratings && hasLegacy && C.can('edit') && !migrating) { migrating = true; writeAll(ST.S.data, true); }
     });
   }
   function listen() {
-    unsubs.forEach(function (u) { u(); }); unsubs = []; parts = { meta: null, roster: {}, games: {}, log: {} };
-    function coll(name) {
+    unsubs.forEach(function (u) { u(); }); unsubs = [];
+    parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {} };
+    layout = { known: { plays: false, ratings: false }, server: {}, split: true }; migrating = false;
+    function coll(name, onErr) {
       unsubs.push(teamRef.collection(name).onSnapshot(function (snap) {
         snap.docChanges().forEach(function (ch) { if (ch.type === 'removed') delete parts[name][ch.doc.id]; else parts[name][ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data()); });
+        if (name in layout.known) {
+          layout.known[name] = true;
+          if (!(snap.metadata && snap.metadata.fromCache)) layout.server[name] = true;   // the server itself said yes, not just the copy on this device
+        }
         rebuild();
-      }, snapErr));
+      }, onErr || snapErr));
     }
+    // plays + ratings: if the rules don't allow these yet, carry on with the old layout instead of locking people out
+    function newLayoutErr(name) {
+      return function (e) {
+        if (e.code !== 'permission-denied') return snapErr(e);
+        layout.split = false; layout.known[name] = true;
+        if (C.role === 'coach' && !layout.warned) { layout.warned = true; root.APP && APP.toast('Coach: publish the new firestore.rules in the Firebase console (Firestore → Rules) to finish the update.'); }
+        rebuild();
+      };
+    }
+    coll('plays', newLayoutErr('plays')); coll('ratings', newLayoutErr('ratings'));
     unsubs.push(teamRef.onSnapshot(function (doc) { parts.meta = doc.data() || {}; rebuild(); }, snapErr));
     coll('roster'); coll('games'); coll('log');
     unsubs.push(teamRef.collection('members').onSnapshot(function (snap) {
@@ -163,9 +233,13 @@
     document.body.classList.add('role-' + (C.role || 'player'), 'cloud');
     var chip = document.getElementById('user-chip');
     if (chip) chip.innerHTML = '<span class="uc-name">' + esc((C.member && C.member.name) || C.user.displayName || C.user.email) + '</span><span class="uc-role">' + esc(C.role || '') + '</span><button class="linkbtn" id="uc-out">Sign out</button>';
-    var out = document.getElementById('uc-out'); if (out) out.onclick = function () { if (confirm('Sign out of the B2A playbook?')) auth.signOut(); };
+    var out = document.getElementById('uc-out'); if (out) out.onclick = function () { if (confirm('Sign out of the B2A playbook? The team data saved on this device is removed too.')) signOutAndClear(); };
   }
 
+  function signOutAndClear() {
+    var go = function () { location.reload(); };
+    auth.signOut().then(function () { return db.terminate(); }).then(function () { return db.clearPersistence(); }).then(go, go);
+  }
   function isOffline(e) { return e && (e.code === 'unavailable' || /offline|network/i.test(e.message || '')); }
   function getRetry(ref, n, k) {   // retry with backoff while the connection warms up
     k = k || 0;
@@ -216,6 +290,9 @@
         auth = firebase.auth(); db = firebase.firestore();
         // long polling instead of the streaming channel: much more reliable on weak mobile data, carrier proxies and ad-blocking DNS
         try { if (db.settings) db.settings({ experimentalForceLongPolling: true }); } catch (x) { }
+        // keep a copy on this device so the site opens and saves with no signal (syncs when it's back)
+        try { db.enablePersistence({ synchronizeTabs: true }).catch(function () { }); } catch (x) { }
+        root.addEventListener('online', syncChanged); root.addEventListener('offline', function () { syncChanged(); root.APP && APP.toast('No signal — keep going, changes sync when you’re back online.'); });
         teamRef = db.collection('teams').doc(TEAM);
         var redirecting = false; try { redirecting = sessionStorage.getItem('b2a.redirect') === '1'; sessionStorage.removeItem('b2a.redirect'); } catch (x) { }
         if (redirecting) auth.getRedirectResult().catch(function (e) { signInScreen(esc(friendly(e))); });

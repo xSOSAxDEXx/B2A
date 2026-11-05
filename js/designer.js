@@ -181,7 +181,7 @@
     var p = cleanDraft();
     if (!E.validate(p).legal && !confirm('This play has rule issues. Save anyway?')) return;
     var tp = ST.S.data.teamPlays;
-    if (!p.id || !tp.some(function (c) { return c.id === p.id; })) { p.id = 'team-' + Date.now().toString(36); tp.push(p); }
+    if (!p.id || !tp.some(function (c) { return c.id === p.id; })) { p.id = 'team-' + Date.now().toString(36); p.created = new Date().toISOString(); tp.push(p); }   // 'created' keeps team plays in the order they were made
     else ST.S.data.teamPlays = tp.map(function (c) { return c.id === p.id ? p : c; });
     D.play.id = p.id; ST.save();
     A.toast('Saved to team plays — the whole team has it now.');
