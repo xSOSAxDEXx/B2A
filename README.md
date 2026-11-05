@@ -29,3 +29,6 @@ It tries every save the site makes as coach / editor / player / outsider, with g
 
 When a feature changes on purpose, update the matching check here in the same session.
 8. Team plays + ratings in their own documents: the site keeps working on the old rules, the coach's first visit after the new rules moves the data, team plays with real routes save (Firestore can't store lists inside lists — the fake rejects them just like the real one), a refused save shows a message and doesn't block the next one, offline badge, offline cache on, sign-out wipes the device copy.
+
+## Style comparison (for CSS cleanups)
+`node style-compare.js <old-site> <new-site>` renders about 58 screens in both copies (every tab at desktop, tablet and phone width, print, signed-in views) and lists every element whose computed style differs. Make the old copy with `git worktree add --detach ../B2A-old origin/main`. "IDENTICAL" means nobody will see a change. Small position differences inside a quiz answer animation are timing noise.
