@@ -23,7 +23,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - `js/firebase-config.js` — the Firebase web config (safe to commit; access is controlled by the rules and the team list).
 - `firestore.rules` — paste into Firebase console → Firestore → Rules → Publish after any change. Roles: **coach** (everything + access list), **editor** (all data), **player** (view, log results, scoreboard/downs, own roster profile).
 - Teammates are added in Roster → Team access; data lives in `teams/b2a` (+ `members`, `roster`, `games`, `log`).
-- Legacy: with the config set to `null` the site runs without logins (data saved on the device, coach publishes `data/season.json` with a GitHub token).
+- With the config set to `null` the site runs in **test mode**: no logins, nothing saved, yellow banner at the bottom. Only for automated tests — never deploy it that way.
 
 ## Files
 - `index.html`, `css/styles.css`
@@ -33,6 +33,9 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - `js/plays.js`, `js/defense-plays.js` the playbook data
 - `js/store.js` season data; `js/cloud.js` Firebase sign-in + live sync
 - `js/app.js` (Plays tab + shared helpers), `gameday.js`, `stats.js`, `quiz.js`, `roster.js`, `designer.js`, `guide.js`, `guide-ui.js`, `rules.js`, `help.js`, `icons.js`, `boot.js`
+
+## Testing
+Browser tests live on the `tests` branch (never served by GitHub Pages): `git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from this folder. Run them before every push to `main`.
 
 ## Deploying
 No build step — plain HTML/CSS/JS on GitHub Pages; every push to `main` redeploys in about a minute.

@@ -78,24 +78,10 @@
       var em = user.email.toLowerCase();
       teamRef.set({ ownerUid: user.uid, opponents: [], activeGame: null, ratings: {}, teamPlays: [], updated: new Date().toISOString() })
         .then(function () { return teamRef.collection('members').doc(em).set({ role: 'coach', name: user.displayName || '', addedAt: new Date().toISOString() }); })
-        .then(function () { return migrateLocal(user); })
         .then(function () { onUser(user); })
         .catch(function (e) { showGate('<h2>Setup failed</h2><p class="gate-msg">' + esc(friendly(e)) + '</p><p class="hint">Make sure the Firestore rules from <b>firestore.rules</b> are published.</p>'); });
     };
     document.getElementById('g-out').onclick = function () { auth.signOut(); };
-  }
-
-  /* bring over anything already on this device / in data/season.json the first time */
-  function migrateLocal(user) {
-    var local = null; try { local = JSON.parse(localStorage.getItem('b2a.season.local.v1') || 'null'); } catch (e) { }
-    return fetch('data/season.json?v=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }).then(function (remote) {
-      var src = local && local._dirty ? local : remote;
-      if (!src || !((src.games || []).length || (src.roster || []).length || (src.teamPlays || []).length || Object.keys(src.ratings || {}).length)) return;
-      if (!confirm('Bring the existing playbook data (games, roster, results, team plays) into the new shared team space?')) return;
-      (src.games || []).forEach(function (g) { (g.log || []).forEach(function (l) { l.by = user.uid; l.byName = 'imported'; }); });
-      delete src._dirty;
-      return writeAll(src, true);
-    });
   }
 
   /* ---------------- data sync ---------------- */
@@ -112,17 +98,17 @@
     return out;
   }
   function refFor(key) { if (key === 'meta') return teamRef; var p = key.split('/'); return teamRef.collection(p[0]).doc(p[1]); }
-  function writeAll(d, force) {
+  function writeAll(d) {   // write only what changed since the last snapshot
     var now = units(d), batch = db.batch(), n = 0, ops = [];
     Object.keys(now).forEach(function (k) {
-      if (!force && last[k] === now[k]) return;
+      if (last[k] === now[k]) return;
       var val = JSON.parse(now[k]);
       if (k === 'meta') { val.updated = new Date().toISOString(); batch.set(teamRef, val, { merge: true }); }
-      else if (k.indexOf('log/') === 0 && !last[k] && !force) { val.by = C.user.uid; val.byName = val.byName || (C.member && C.member.name) || C.user.displayName || C.user.email; batch.set(refFor(k), val); }
+      else if (k.indexOf('log/') === 0 && !last[k]) { val.by = C.user.uid; val.byName = val.byName || (C.member && C.member.name) || C.user.displayName || C.user.email; batch.set(refFor(k), val); }
       else batch.set(refFor(k), val);
       n++; ops.push(k);
     });
-    if (!force) Object.keys(last).forEach(function (k) { if (!now[k] && k !== 'meta') { batch.delete(refFor(k)); n++; ops.push('-' + k); } });
+    Object.keys(last).forEach(function (k) { if (!now[k] && k !== 'meta') { batch.delete(refFor(k)); n++; ops.push('-' + k); } });
     if (!n) return Promise.resolve();
     Object.keys(now).forEach(function (k) { last[k] = now[k]; });
     Object.keys(last).forEach(function (k) { if (!now[k]) delete last[k]; });
@@ -237,7 +223,7 @@
       }).catch(function (e) { showGate('<h2>Couldn’t load sign-in</h2><p class="gate-msg">' + esc(e.message) + '</p><p class="hint">Check your connection and reload.</p>'); });
     });
   };
-  C.save = function (data) { if (C.ready && C.user) return writeAll(data, false); return Promise.resolve(); };
+  C.save = function (data) { if (C.ready && C.user) return writeAll(data); return Promise.resolve(); };
   C.can = function (what) {
     if (!C.enabled) return true;
     if (C.role === 'coach' || C.role === 'editor') return true;

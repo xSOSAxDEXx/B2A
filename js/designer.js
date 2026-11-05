@@ -184,7 +184,7 @@
     if (!p.id || !tp.some(function (c) { return c.id === p.id; })) { p.id = 'team-' + Date.now().toString(36); tp.push(p); }
     else ST.S.data.teamPlays = tp.map(function (c) { return c.id === p.id ? p : c; });
     D.play.id = p.id; ST.save();
-    A.toast(A.isLive() ? 'Saved to team plays — the whole team has it now.' : 'Saved to team plays. Publish from Game Day so the team gets it.');
+    A.toast('Saved to team plays — the whole team has it now.');
     A.refreshPlays(); A.openPlay(p.id, 'off');
   });
   $('#d-new').addEventListener('click', function () { if (confirm('Start a new blank play? Unsaved changes are lost.')) open(blankPlay($('#d-form').value)); });

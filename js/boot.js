@@ -1,4 +1,4 @@
-/* Start-up: draw the logo + icons, load the team's published season data, then show the playbook. */
+/* Start-up: draw the logo + icons, load the team's data (Firebase), then show the playbook. */
 (function () {
   'use strict';
   var A = window.APP;

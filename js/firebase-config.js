@@ -2,7 +2,7 @@
    Paste the "firebaseConfig" object from Firebase console → Project settings → Your apps → Web app.
    These values are safe to commit: access is controlled by the Firestore security rules (firestore.rules)
    and the team list, not by keeping this key secret.
-   Leave it as null to run the site without logins (local data + GitHub publish, the old way). */
+   Setting it to null switches the site to TEST MODE (no logins, nothing saved) — only for automated tests. */
 window.B2A_FIREBASE_CONFIG = {
   apiKey: "AIzaSyDvDxaEHcTyInPXccLWfwGg9SQ_WWsBexM",
   authDomain: "b2a-playbook.firebaseapp.com",

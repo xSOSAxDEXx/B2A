@@ -27,3 +27,8 @@ Interactive playbook site for B2A, my flag football team.
 ## Deploying
 - Every push to main redeploys GitHub Pages in about a minute.
 - Bump the `?v=` value on all the script/stylesheet links in index.html with every deploy (same value for all, e.g. `?v=20261105b`) so phones don't run a cached mix of old and new files.
+
+## Testing
+- Browser tests are on the `tests` branch (not served by GitHub Pages): `git fetch origin tests && git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from the repo folder. Run them before every push to main; update a check in the same session when a feature changes on purpose.
+- With `window.B2A_FIREBASE_CONFIG` set to null (e.g. Playwright addInitScript) the site runs in test mode: no logins, data only in memory, yellow banner. Login flows are tested against an in-memory fake Firebase (`mockfb.js` on the tests branch).
+- Don't commit screenshots or test files to main.

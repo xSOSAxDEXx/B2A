@@ -1,4 +1,4 @@
-/* Game Day: matchup, weekly game plan, scoreboard, series tracker, play caller, results log, coach publish. */
+/* Game Day: matchup, weekly game plan, scoreboard, series tracker, play caller, results log, coach tools. */
 (function () {
   'use strict';
   var A = window.APP, ST = A.ST, $ = A.$, $$ = A.$$, esc = A.esc;
@@ -202,25 +202,21 @@
     g.log = g.log.filter(function (l) { return l.id !== b.dataset.del; }); ST.save();
   });
 
-  /* ---------- coach tools ---------- */
+  /* ---------- sync status & coach tools ---------- */
   function renderSync() {
-    var d = ST.S.data, g = g0();
-    $('#gd-title').innerHTML = g ? '<span>vs</span> ' + esc(g.opp) + ' <small>' + esc(fmtDate(g.date)) + '</small>' : '<small>Create a game to build the weekly plan and track results.</small>';
-    var CL = window.B2A_CLOUD;
-    if (CL && CL.enabled) { $('#gd-sync').innerHTML = '<span class="pill ok">' + ICON('check') + ' Live — changes sync to the whole team instantly</span>'; return; }
-    $('#gd-sync').innerHTML = ST.S.dirty ? '<span class="pill warn">● Unpublished changes on this device</span>' : '<span class="pill ok">✓ In sync with the team site' + (d.updated ? ' · ' + new Date(d.updated).toLocaleString() : '') + '</span>';
-    $('#ck-token').value = ST.token() ? '••••••••••••' : '';
+    var g = g0();
+    $('#gd-title').innerHTML = g
+      ? '<span>vs</span> ' + esc(g.opp) + ' <small>' + esc(fmtDate(g.date)) + '</small>'
+      : '<small>Create a game to build the weekly plan and track results.</small>';
+    $('#gd-sync').innerHTML = A.isLive()
+      ? '<span class="pill ok">' + ICON('check') + ' Live — changes sync to the whole team instantly</span>'
+      : '<span class="pill warn">Test mode — logins are off and nothing is saved</span>';
   }
-  $('#ck-token').addEventListener('change', function (e) { var v = e.target.value.trim(); if (v && v.indexOf('•') < 0) { ST.token(v); A.toast('Token saved on this device.'); } else if (!v) { ST.token(''); A.toast('Token removed.'); } renderSync(); });
-  $('#ck-publish').addEventListener('click', function () {
-    var b = $('#ck-publish'); b.disabled = true; b.textContent = 'Publishing…';
-    ST.publish().then(function () { A.toast('Published! The team site updates in about a minute.'); })
-      .catch(function (err) { A.toast(err.message); })
-      .then(function () { b.disabled = false; b.textContent = '⬆ Publish to team'; });
-  });
   $('#ck-download').addEventListener('click', ST.download);
-  $('#ck-discard').addEventListener('click', function () { if (confirm('Throw away changes on this device and reload the team’s published data?')) ST.discardLocal(); });
-  $('#ck-delgame').addEventListener('click', function () { var g = g0(); if (g && confirm('Delete the game vs ' + g.opp + ' and its log?')) ST.deleteGame(g.id); });
+  $('#ck-delgame').addEventListener('click', function () {
+    var g = g0();
+    if (g && confirm('Delete the game vs ' + g.opp + ' and its log?')) ST.deleteGame(g.id);
+  });
 
   function render() {
     renderGameSelect(); renderPlan(); renderBoard(); renderRecs(); fillLogSelects(); renderLog(); renderSync();

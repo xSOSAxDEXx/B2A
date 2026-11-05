@@ -486,7 +486,7 @@
     var base = findOff(view.id); if (!base || !base.custom) return;
     if (!confirm('Delete "' + base.name + '" from team plays?')) return;
     ST.S.data.teamPlays = ST.S.data.teamPlays.filter(function (p) { return p.id !== base.id; }); ST.save();
-    select(B2A_PLAYS[0].id); toast(isLive() ? 'Deleted for the whole team.' : 'Deleted. Publish to remove it for the team.');
+    select(B2A_PLAYS[0].id); toast('Deleted for the whole team.');
   });
   $('#v-share').addEventListener('click', function () {
     var p = E.clone(currentOff()); delete p.num; delete p.custom; delete p.shared;

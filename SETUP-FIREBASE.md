@@ -4,7 +4,7 @@ About 15 minutes, one time. Everything here is on Firebase's free **Spark** plan
 
 When you're done, the site will:
 - Show a sign-in screen to everyone. Only emails **you** add can get in.
-- Save every change instantly for the whole team (no GitHub token, no Publish button).
+- Save every change instantly for the whole team.
 - Give each person a role: **Coach** (you — everything + who has access), **Editor** (edits plays, plans, roster, results), **Player** (views everything, logs results, runs the scoreboard, edits their own profile).
 
 ---
@@ -57,6 +57,6 @@ When you're done, the site will:
 ### Good to know
 - **Free plan limits** are far above what a team uses (tens of thousands of reads/writes per day).
 - **The config key in `firebase-config.js` is not a secret.** What protects the data is the security rules + your team list.
-- **Backups:** Game Day → Coach tools → *Download backup (season.json)*.
+- **Backups:** Game Day → Coach tools → *Download backup* (the whole season in one file).
 - **Making the repo private** later: GitHub Pages needs a public repo on a free account. The team data is protected by the logins either way; if you also want the code private, the site can move to Cloudflare Pages (free) — ask and it can be set up.
 - **Something not working?** Send a screenshot of the message on the sign-in screen; most first-time issues are a missing authorized domain (step 3.3) or rules not published (step 5).

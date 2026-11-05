@@ -6,7 +6,7 @@
                                  and the ball meets him in stride. Use { t } instead of brk for a fixed throw time.
      handoff / pitch { from, to, t }
    cat: playbook section. ytg: yards to goal (red zone / PAT). ytm: yards to midfield (midfield no-run zone).
-   Add plays in the Designer tab; team plays published from Game Day are stored in data/season.json. */
+   Add plays in the Designer tab; team plays saved there live in Firebase with the rest of the team data. */
 var B2A_CATS = [
   ['quick', 'Quick game'], ['dropback', 'Dropback & zone beaters'], ['man', 'Man beaters'], ['center', 'Center plays'],
   ['trick', 'Trick plays'], ['run', 'Runs'], ['midfield', 'Midfield no-run zone'], ['redzone', 'Red zone & PAT']

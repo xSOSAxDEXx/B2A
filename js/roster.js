@@ -181,7 +181,7 @@
       editing.number = $('#rf-num').value; editing.offPos = $('#rf-off').value; editing.defPos = $('#rf-def').value; editing.notes = $('#rf-notes').value.trim();
       if (editing.id) ST.S.data.roster = roster().map(function (p) { return p.id === editing.id ? editing : p; });
       else { editing.id = ST.uid('p'); roster().push(editing); }
-      $('#ro-form').classList.add('hidden'); A.toast(editing.name + (A.isLive() ? ' saved for the whole team.' : ' saved. Publish from Game Day to share the roster.')); editing = null; ST.save();
+      $('#ro-form').classList.add('hidden'); A.toast(editing.name + ' saved for the whole team.'); editing = null; ST.save();
     }
   });
   function renderRoster() {
