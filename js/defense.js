@@ -250,7 +250,16 @@
     return 'Ball carrier still running at ' + (res.gain >= 0 ? '+' : '') + res.gain.toFixed(0) + ' yds';
   }
 
-  var api = { strength: strength, onText: onText, cornerLabel: cornerLabel, legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
+  /* One number for "how good was this play for the offense" — used by "Best read", the quiz and anything
+     else that ranks plays against a coverage, so they always agree. Higher = better for the offense. */
+  function scoreResult(res) {
+    if (res.kind === 'sack' || res.kind === 'int') return -9;
+    if (res.kind === 'inc') return -4;
+    if (res.kind === 'td') return 40;
+    return res.gain + (res.sep || 0) * 2;
+  }
+
+  var api = { scoreResult: scoreResult, strength: strength, onText: onText, cornerLabel: cornerLabel, legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
   E.DEF = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

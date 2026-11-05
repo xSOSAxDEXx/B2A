@@ -23,3 +23,7 @@ Interactive playbook site for B2A, my flag football team.
 - I'm a mechanical engineer, not a software engineer. Explain steps in plain language.
 - Give complete files or complete code blocks I can paste, not partial snippets.
 - Tell me exactly what to click or run for anything outside the code (GitHub, Firebase console).
+
+## Deploying
+- Every push to main redeploys GitHub Pages in about a minute.
+- Bump the `?v=` value on all the script/stylesheet links in index.html with every deploy (same value for all, e.g. `?v=20261105b`) so phones don't run a cached mix of old and new files.

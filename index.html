@@ -10,7 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+  <!-- ?v=… on our own files: bump it on every deploy (one value for all) so phones fetch the new files instead of a cached mix of old and new -->
+  <link rel="stylesheet" href="css/styles.css?v=20261105a">
 </head>
 <body>
   <header class="top">
@@ -332,24 +333,25 @@
   <div id="print-sheet" class="print-only"></div>
   <div id="toast" class="toast"></div>
 
-  <script src="js/firebase-config.js"></script>
-  <script src="js/cloud.js"></script>
-  <script src="js/icons.js"></script>
-  <script src="js/engine.js"></script>
-  <script src="js/defense.js"></script>
-  <script src="js/plays.js"></script>
-  <script src="js/defense-plays.js"></script>
-  <script src="js/rules.js"></script>
-  <script src="js/guide.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/gameday.js"></script>
-  <script src="js/stats.js"></script>
-  <script src="js/quiz.js"></script>
-  <script src="js/roster.js"></script>
-  <script src="js/designer.js"></script>
-  <script src="js/guide-ui.js"></script>
-  <script src="js/help.js"></script>
-  <script src="js/boot.js"></script>
+  <script src="js/util.js?v=20261105a"></script>
+  <script src="js/firebase-config.js?v=20261105a"></script>
+  <script src="js/cloud.js?v=20261105a"></script>
+  <script src="js/icons.js?v=20261105a"></script>
+  <script src="js/engine.js?v=20261105a"></script>
+  <script src="js/defense.js?v=20261105a"></script>
+  <script src="js/plays.js?v=20261105a"></script>
+  <script src="js/defense-plays.js?v=20261105a"></script>
+  <script src="js/rules.js?v=20261105a"></script>
+  <script src="js/guide.js?v=20261105a"></script>
+  <script src="js/store.js?v=20261105a"></script>
+  <script src="js/app.js?v=20261105a"></script>
+  <script src="js/gameday.js?v=20261105a"></script>
+  <script src="js/stats.js?v=20261105a"></script>
+  <script src="js/quiz.js?v=20261105a"></script>
+  <script src="js/roster.js?v=20261105a"></script>
+  <script src="js/designer.js?v=20261105a"></script>
+  <script src="js/guide-ui.js?v=20261105a"></script>
+  <script src="js/help.js?v=20261105a"></script>
+  <script src="js/boot.js?v=20261105a"></script>
 </body>
 </html>

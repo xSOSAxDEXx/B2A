@@ -4,7 +4,7 @@
   var E = window.B2A, D = E.DEF, ST = window.B2A_STORE;
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var esc = window.B2A_ESC;
   function toast(msg) { var t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2800); }
   function copyText(txt, msg) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast(msg); }, function () { prompt('Copy this:', txt); });
@@ -231,10 +231,9 @@
       var ev = E.buildSim(retarget(p, r)).P.events[0]; return ev.catchPt && ev.catchPt[1] > 0.5;
     });
   }
-  function scoreRes(r) { return r.kind === 'sack' || r.kind === 'int' ? -9 : r.kind === 'inc' ? -4 : r.kind === 'td' ? 40 : r.gain + (r.sep || 0) * 2; }
   function bestTarget(p, def) {
     var best = null;
-    throwTargets(p).forEach(function (r) { var s = scoreRes(D.simulate(def, E.buildSim(retarget(p, r))).result); if (!best || s > best.s) best = { r: r, s: s }; });
+    throwTargets(p).forEach(function (r) { var s = D.scoreResult(D.simulate(def, E.buildSim(retarget(p, r))).result); if (!best || s > best.s) best = { r: r, s: s }; });
     return best && best.r;
   }
   function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return d && view.flip ? D.flipDefense(d) : d; }
