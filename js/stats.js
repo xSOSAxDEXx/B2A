@@ -6,6 +6,35 @@
   var f = { opp: '', side: 'off' };
 
   function bar(x, cls) { return '<div class="bar ' + (cls || '') + '"><i style="width:' + Math.round((x || 0) * 100) + '%"></i></div>'; }
+  function table(cls, heads, body) {
+    return '<table class="' + cls + '"><thead><tr>' + heads.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + body + '</tbody></table>';
+  }
+  function okCount(log, side) { return log.filter(function (l) { return l.side === side && ST.resultInfo(side, l.result).ok; }).length; }
+  /* one game in the Matchups table: score, W/L/T, offense + defense success rates */
+  function gameRow(g) {
+    var nOff = g.log.filter(function (l) { return l.side === 'off'; }).length, nDef = g.log.filter(function (l) { return l.side === 'def'; }).length;
+    var res = g.us > g.them ? 'W' : g.us < g.them ? 'L' : (g.us || g.them ? 'T' : '–');
+    return '<tr data-opp="' + esc(g.opp) + '">' +
+      '<td>' + esc(g.date || '') + '</td>' +
+      '<td><b>' + esc(g.opp) + '</b></td>' +
+      '<td>' + g.us + '–' + g.them + ' <span class="wl ' + res + '">' + res + '</span></td>' +
+      '<td>' + (nOff ? pct(okCount(g.log, 'off') / nOff) : '—') + '</td>' +
+      '<td>' + (nDef ? pct(okCount(g.log, 'def') / nDef) : '—') + '</td>' +
+      '<td class="muted">' + g.log.length + ' logged</td></tr>';
+  }
+  /* one play in the Play performance table */
+  function playRow(s) {
+    var sr = s.calls ? s.ok / s.calls : null, r = ST.rating(s.play);
+    var success = sr == null ? '—' : bar(sr, sr >= 0.6 ? 'good' : sr < 0.4 ? 'bad' : '') + '<span>' + pct(sr) + '</span>';
+    return '<tr data-id="' + esc(s.play) + '">' +
+      '<td><b>' + esc(A.playName(s.play)) + '</b></td>' +
+      '<td>' + s.calls + '</td>' +
+      '<td><div class="sr">' + success + '</div></td>' +
+      '<td>' + (s.ydsN ? (s.yds / s.ydsN).toFixed(1) : '—') + '</td>' +
+      '<td>' + (f.side === 'off' ? s.td + ' / ' + s.to : s.to) + '</td>' +
+      '<td class="rt"><button data-r="1" class="' + (r > 0 ? 'on' : '') + '">' + ICON('up') + '</button><button data-r="-1" class="' + (r < 0 ? 'on' : '') + '">' + ICON('down') + '</button></td></tr>';
+  }
+
   function render() {
     var d = ST.S.data;
     var opps = d.opponents.slice().sort();
@@ -24,12 +53,9 @@
       ['Defense stop rate', def.length ? pct(defOk / def.length) : '—', def.length + ' plays'], ['Offensive TDs', String(tds)]
     ].map(function (t) { return '<div class="tile"><span>' + t[0] + '</span><b>' + t[1] + '</b>' + (t[2] ? '<small>' + t[2] + '</small>' : '') + '</div>'; }).join('');
 
-    $('#st-games').innerHTML = games.length ? '<table class="tbl"><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>Off.</th><th>Def.</th><th></th></tr></thead><tbody>' + games.map(function (g) {
-      var o = g.log.filter(function (l) { return l.side === 'off'; }), dd = g.log.filter(function (l) { return l.side === 'def'; });
-      var oo = o.filter(function (l) { return ST.resultInfo('off', l.result).ok; }).length, de = dd.filter(function (l) { return ST.resultInfo('def', l.result).ok; }).length;
-      var res = g.us > g.them ? 'W' : g.us < g.them ? 'L' : (g.us || g.them ? 'T' : '–');
-      return '<tr data-opp="' + esc(g.opp) + '"><td>' + esc(g.date || '') + '</td><td><b>' + esc(g.opp) + '</b></td><td>' + g.us + '–' + g.them + ' <span class="wl ' + res + '">' + res + '</span></td><td>' + (o.length ? pct(oo / o.length) : '—') + '</td><td>' + (dd.length ? pct(de / dd.length) : '—') + '</td><td class="muted">' + g.log.length + ' logged</td></tr>';
-    }).join('') + '</tbody></table>' : '<p class="hint">No games yet. Create one in Game Day and log plays as you go.</p>';
+    $('#st-games').innerHTML = games.length
+      ? table('tbl', ['Date', 'Opponent', 'Score', 'Off.', 'Def.', ''], games.map(gameRow).join(''))
+      : '<p class="hint">No games yet. Create one in Game Day and log plays as you go.</p>';
 
     var stats = ST.playStats({ opp: f.opp, side: f.side });
     var rows = Object.keys(stats).map(function (k) { return stats[k]; }).sort(function (a, b) { return b.ok / b.calls - a.ok / a.calls || b.calls - a.calls; });
@@ -38,11 +64,9 @@
       var isDef = !!A.findDef(id); if ((f.side === 'def') !== isDef || stats[id]) return;
       rows.push({ play: id, calls: 0, ok: 0, yds: 0, ydsN: 0, td: 0, to: 0 });
     });
-    $('#st-plays').innerHTML = rows.length ? '<table class="tbl plays"><thead><tr><th>Play</th><th>Calls</th><th>Success</th><th>Avg yds</th><th>' + (f.side === 'off' ? 'TD / TO' : 'INT') + '</th><th>Rate</th></tr></thead><tbody>' + rows.map(function (s) {
-      var sr = s.calls ? s.ok / s.calls : null, r = ST.rating(s.play);
-      return '<tr data-id="' + esc(s.play) + '"><td><b>' + esc(A.playName(s.play)) + '</b></td><td>' + s.calls + '</td><td><div class="sr">' + (sr == null ? '—' : bar(sr, sr >= 0.6 ? 'good' : sr < 0.4 ? 'bad' : '') + '<span>' + pct(sr) + '</span>') + '</div></td><td>' + (s.ydsN ? (s.yds / s.ydsN).toFixed(1) : '—') + '</td><td>' + (f.side === 'off' ? s.td + ' / ' + s.to : s.to) + '</td>' +
-        '<td class="rt"><button data-r="1" class="' + (r > 0 ? 'on' : '') + '">' + ICON('up') + '</button><button data-r="-1" class="' + (r < 0 ? 'on' : '') + '">' + ICON('down') + '</button></td></tr>';
-    }).join('') + '</tbody></table>' : '<p class="hint">Log plays in Game Day to see what works.</p>';
+    $('#st-plays').innerHTML = rows.length
+      ? table('tbl plays', ['Play', 'Calls', 'Success', 'Avg yds', f.side === 'off' ? 'TD / TO' : 'INT', 'Rate'], rows.map(playRow).join(''))
+      : '<p class="hint">Log plays in Game Day to see what works.</p>';
 
     var ents = f.side === 'off' ? off : def;
     $('#st-down').innerHTML = [1, 2, 3].map(function (dn) {

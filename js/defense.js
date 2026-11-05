@@ -205,6 +205,7 @@
     if (job === 'spy') return 'M' + (x - r) + ',' + y + ' a' + r + ',' + r + ' 0 1,0 ' + 2 * r + ',0 a' + r + ',' + r + ' 0 1,0 ' + -2 * r + ',0';
     return 'M' + (x - r) + ',' + (y - r) + ' h' + 2 * r + ' v' + 2 * r + ' h' + -2 * r + ' Z';
   }
+  var RAISED_HAND = 'M4 14V6a1.5 1.5 0 013 0v5M7 11V3.5a1.5 1.5 0 013 0V11M10 11V4.5a1.5 1.5 0 013 0V12M13 12V7a1.5 1.5 0 013 0v6c0 4-3 6-6 6s-5-2-6-4l-2-4a1.5 1.5 0 012.5-1.5L4 14';
   function defendersSVG(dsim, t, opts) {
     opts = opts || {};
     var s = '';
@@ -216,7 +217,7 @@
         s += '<g class="defp ' + d.job + '"><path d="' + shapePath(d.job, x, y, 12) + '" fill="' + c + '"/>' +
           '<text x="' + x + '" y="' + (y + (d.job === 'blitz' ? 7 : 4.5)) + '" class="def-label">' + d.label + '</text></g>';
       }
-      if (d.job === 'blitz' && t <= 0) s += '<g transform="translate(' + (x + 13) + ',' + (y - 22) + ')"><path d="M4 14V6a1.5 1.5 0 013 0v5M7 11V3.5a1.5 1.5 0 013 0V11M10 11V4.5a1.5 1.5 0 013 0V12M13 12V7a1.5 1.5 0 013 0v6c0 4-3 6-6 6s-5-2-6-4l-2-4a1.5 1.5 0 012.5-1.5L4 14" fill="none" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"/></g>';
+      if (d.job === 'blitz' && t <= 0) s += '<g transform="translate(' + (x + 13) + ',' + (y - 22) + ')"><path d="' + RAISED_HAND + '" fill="none" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"/></g>';   // hand up before the snap
     });
     return s;
   }
@@ -259,7 +260,12 @@
     return res.gain + (res.sep || 0) * 2;
   }
 
-  var api = { scoreResult: scoreResult, strength: strength, onText: onText, cornerLabel: cornerLabel, legendHTML: legendHTML, shapePath: shapePath, JOB_NAMES: JOB_NAMES, simulate: simulate, flipDefense: flipDefense, assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, describe: describe, JOB_COLORS: JOB_COLORS };
+  var api = {
+    simulate: simulate, scoreResult: scoreResult, describe: describe, flipDefense: flipDefense,
+    strength: strength, onText: onText, cornerLabel: cornerLabel,
+    assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, legendHTML: legendHTML, shapePath: shapePath,
+    JOB_NAMES: JOB_NAMES, JOB_COLORS: JOB_COLORS
+  };
   E.DEF = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

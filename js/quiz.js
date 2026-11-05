@@ -34,7 +34,8 @@
   function pathSVG(p, role, path, crop) {
     var sim = E.buildSim(p), u = 'q' + (uidN++), c = E.COLORS[role];
     var d = path.map(function (pt) { return E.sx(pt[0]).toFixed(1) + ',' + E.sy(pt[1]).toFixed(1); }).join(' ');
-    return '<svg viewBox="' + E.viewBox(crop || [-7, 18]) + '" class="field-svg">' + E.fieldSVG(sim.P, { uid: u }).replace('<defs>', '<defs><marker id="qa' + u + '" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>') +
+    var arrowHead = '<marker id="qa' + u + '" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="' + c + '"/></marker>';
+    return '<svg viewBox="' + E.viewBox(crop || [-7, 18]) + '" class="field-svg">' + E.fieldSVG(sim.P, { uid: u }).replace('<defs>', '<defs>' + arrowHead) +
       '<polyline points="' + d + '" fill="none" stroke="' + c + '" stroke-width="4" stroke-linejoin="round" marker-end="url(#qa' + u + ')"/>' +
       '<g class="dim-others" data-me="' + role + '">' + E.playersSVG(sim, sim.tStart, null, { showBall: false, selected: role }) + '</g></svg>';
   }
@@ -75,6 +76,8 @@
       explain: (target ? 'You’re the primary target — the ball comes out as you hit your break. ' : '') + (p.reads ? 'Progression: ' + p.reads.join(' → ') + '.' : '')
     };
   }
+  // the parts of a play diagram that would give the answer away: pass line, catch ring, break dot, run-after-catch tail
+  var GIVEAWAYS = /<line[^>]*class="(pass|pitch)-line"[^>]*\/>|<circle[^>]*class="(catch-ring|break-dot)"[^>]*\/>|<polyline[^>]*class="yac"[^>]*\/>/g;
   function firstReadQ(p) {
     var pass = p.events.filter(function (e) { return e.type === 'pass'; })[0]; if (!pass) return null;
     var thrower = pass.from === 'QB' ? '' : ' (' + pass.from + ' throws it after the handoff)';
@@ -82,7 +85,8 @@
     if (opts.indexOf(pass.to) < 0) opts[0] = pass.to;
     return {
       kind: 'choice', play: p, prompt: 'Who is the designed target on <b>' + esc(p.name) + '</b>?' + thrower,
-      pic: A.offSVG(p, [-7, 18], 'qf' + (uidN++)).replace(/<line[^>]*class="(pass|pitch)-line"[^>]*\/>|<circle[^>]*class="(catch-ring|break-dot)"[^>]*\/>|<polyline[^>]*class="yac"[^>]*\/>/g, ''), options: shuffle(opts).map(function (r) { return { text: r + ' — ' + E.ROLE_NAMES[r], ok: r === pass.to }; }),
+      pic: A.offSVG(p, [-7, 18], 'qf' + (uidN++)).replace(GIVEAWAYS, ''),
+      options: shuffle(opts).map(function (r) { return { text: r + ' — ' + E.ROLE_NAMES[r], ok: r === pass.to }; }),
       explain: 'Progression: ' + (p.reads || []).join(' → ')
     };
   }
@@ -267,13 +271,26 @@
     var g = ST.game(), hasPlan = g && (g.plan.off.length || g.plan.def.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
     var ros = ST.S.data.roster.filter(function (p) { return mySpots(p.id).length; });
-    var mine = ros.length ? '<div class="quiz-me card"><h2>Quiz me on my spots</h2><p class="hint">Every spot you’re assigned in the <b>' + esc(g.opp) + '</b> game plan — your routes, your reads, your coverage job.</p>' +
-      '<div class="dd-row"><label class="dd grow"><span>I am</span><select id="qz-me">' + ros.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (p) {
-        return '<option value="' + p.id + '">' + esc((p.number ? '#' + p.number + ' ' : '') + p.name) + ' — ' + mySpots(p.id).length + ' spots</option>'; }).join('') + '</select></label>' +
-      '<button class="btn primary" id="qz-me-go">' + ICON('play') + ' Start my quiz</button></div><div id="qz-me-spots" class="me-spots"></div></div>' : '';
-    root.innerHTML = mine + '<div class="quiz-setup card"><h2>' + (mine ? 'Or quiz by position' : 'Quiz') + '</h2><p class="hint">Pick your position. Questions come from ' + (hasPlan ? 'the <b>' + esc(g.opp) + '</b> game plan' : 'the playbook') + ' — where you go, who’s open, what to call.</p>' +
-      '<div class="pos-grid">' + POS.map(function (p) { return '<button class="pos" data-pos="' + p[0] + '"><span>' + ICON(p[2]) + '</span><b>' + p[1] + '</b>' + (best[p[0]] ? '<small>Best ' + best[p[0]] + '%</small>' : '') + '</button>'; }).join('') + '</div>' +
-      '<div class="dd-row"><label class="dd"><span>Questions from</span><select id="qz-src"><option value="plan"' + (hasPlan ? '' : ' disabled') + '>This week’s game plan' + (hasPlan ? ' (vs ' + esc(g.opp) + ')' : ' — none yet') + '</option><option value="all">Whole playbook</option></select></label>' +
+    // "Quiz me on my spots" card — only when someone has spots assigned this week
+    var mine = '';
+    if (ros.length) {
+      var people = ros.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (p) {
+        return '<option value="' + p.id + '">' + esc((p.number ? '#' + p.number + ' ' : '') + p.name) + ' — ' + mySpots(p.id).length + ' spots</option>';
+      }).join('');
+      mine = '<div class="quiz-me card"><h2>Quiz me on my spots</h2>' +
+        '<p class="hint">Every spot you’re assigned in the <b>' + esc(g.opp) + '</b> game plan — your routes, your reads, your coverage job.</p>' +
+        '<div class="dd-row"><label class="dd grow"><span>I am</span><select id="qz-me">' + people + '</select></label>' +
+        '<button class="btn primary" id="qz-me-go">' + ICON('play') + ' Start my quiz</button></div>' +
+        '<div id="qz-me-spots" class="me-spots"></div></div>';
+    }
+    var posButtons = POS.map(function (p) {
+      return '<button class="pos" data-pos="' + p[0] + '"><span>' + ICON(p[2]) + '</span><b>' + p[1] + '</b>' + (best[p[0]] ? '<small>Best ' + best[p[0]] + '%</small>' : '') + '</button>';
+    }).join('');
+    var planOption = '<option value="plan"' + (hasPlan ? '' : ' disabled') + '>This week’s game plan' + (hasPlan ? ' (vs ' + esc(g.opp) + ')' : ' — none yet') + '</option>';
+    root.innerHTML = mine + '<div class="quiz-setup card"><h2>' + (mine ? 'Or quiz by position' : 'Quiz') + '</h2>' +
+      '<p class="hint">Pick your position. Questions come from ' + (hasPlan ? 'the <b>' + esc(g.opp) + '</b> game plan' : 'the playbook') + ' — where you go, who’s open, what to call.</p>' +
+      '<div class="pos-grid">' + posButtons + '</div>' +
+      '<div class="dd-row"><label class="dd"><span>Questions from</span><select id="qz-src">' + planOption + '<option value="all">Whole playbook</option></select></label>' +
       '<label class="dd"><span>Length</span><select id="qz-n"><option>5</option><option selected>10</option><option>15</option></select></label></div></div>';
     $('#qz-src').value = hasPlan ? Q.src : 'all';
     if (mine) {
@@ -326,13 +343,21 @@
     if (animSrc) { Q.anim = new A.Animator($('#qz-field')); Q.anim.speed = 0.6; Q.anim.load(animSrc.off, animSrc.def, animSrc.mode); Q.anim.start(); }
     $('#qz-next').addEventListener('click', function () { Q.i++; if (Q.i < Q.list.length) showQ(); else finish(); });
   }
+  /* the questions you missed, each with the explanation and a link to the play */
+  function reviewList() {
+    if (!Q.missed.length) return '';
+    return '<h3>Review</h3><ul class="missed">' + Q.missed.map(function (q) {
+      var link = q.play ? ' <a href="#" data-open="' + esc(q.play.id) + '">Open play</a>' : '';
+      return '<li><b>' + q.prompt.replace(/<[^>]+>/g, '') + '</b><br><span class="muted">' + esc(q.explain || '') + '</span>' + link + '</li>';
+    }).join('') + '</ul>';
+  }
   function finish() {
     stopAnim();
     var p = Math.round(100 * Q.score / Q.list.length);
     var best = {}; try { best = JSON.parse(localStorage.getItem(LS_BEST) || '{}'); } catch (e) { }
     if (Q.mode !== 'me' && (!best[Q.pos] || p > best[Q.pos])) { best[Q.pos] = p; try { localStorage.setItem(LS_BEST, JSON.stringify(best)); } catch (e) { } }
     root.innerHTML = '<div class="quiz card done"><h2>' + Q.score + ' / ' + Q.list.length + ' <small>(' + p + '%)</small></h2><p>' + (p >= 90 ? 'Game ready.' : p >= 70 ? 'Solid — review the misses below.' : 'Spend some time in the Plays tab, then run it back.') + '</p>' +
-      (Q.missed.length ? '<h3>Review</h3><ul class="missed">' + Q.missed.map(function (q) { return '<li><b>' + q.prompt.replace(/<[^>]+>/g, '') + '</b><br><span class="muted">' + esc(q.explain || '') + '</span>' + (q.play ? ' <a href="#" data-open="' + esc(q.play.id) + '">Open play</a>' : '') + '</li>'; }).join('') + '</ul>' : '') +
+      reviewList() +
       '<div class="series-actions"><button class="btn primary" id="qz-again">Run it back</button><button class="btn" id="qz-other">Change position</button></div></div>';
     $('#qz-again').addEventListener('click', function () { Q.list = Q.mode === 'me' ? buildForPlayer(Q.pid).list : build(); Q.i = 0; Q.score = 0; Q.missed = []; showQ(); });
     $('#qz-other').addEventListener('click', setup);

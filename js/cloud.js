@@ -50,23 +50,49 @@
       (standalone() ? '<p class="hint gate-note">Opened from your home-screen icon: Google sign-in often doesn’t work here on iPhone. Use <b>email + password</b>, or open the site in Safari to sign in with Google.</p>' : ''));
     var g = function (id) { return document.getElementById(id); };
     // Enter in the email/password boxes signs in
-    ['g-email', 'g-pass'].forEach(function (id) { g(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); g('g-in').click(); } }); });
+    ['g-email', 'g-pass'].forEach(function (id) {
+      g(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); g('g-in').click(); } });
+    });
     function fail(e) { signInScreen(esc(friendly(e))); }
-    g('g-google').onclick = function () { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) { if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') { try { sessionStorage.setItem('b2a.redirect', '1'); } catch (x) { } auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); } else fail(e); }); };
+    g('g-google').onclick = function () {
+      auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) {
+        if (e.code !== 'auth/popup-blocked' && e.code !== 'auth/operation-not-supported-in-this-environment') return fail(e);
+        // no popups here: sign in by leaving the page and coming back
+        try { sessionStorage.setItem('b2a.redirect', '1'); } catch (x) { }
+        auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+      });
+    };
     g('g-in').onclick = function () { auth.signInWithEmailAndPassword(g('g-email').value.trim(), g('g-pass').value).catch(fail); };
     g('g-up').onclick = function () {
       auth.createUserWithEmailAndPassword(g('g-email').value.trim(), g('g-pass').value)
         .then(function (cr) { return cr.user.sendEmailVerification(); }).catch(fail);
     };
-    g('g-reset').onclick = function () { var em = g('g-email').value.trim(); if (!em) { signInScreen('Enter your email first, then tap “Forgot password?”.'); return; } auth.sendPasswordResetEmail(em).then(function () { signInScreen('Password reset email sent to ' + esc(em) + '.'); }).catch(fail); };
+    g('g-reset').onclick = function () {
+      var em = g('g-email').value.trim();
+      if (!em) { signInScreen('Enter your email first, then tap “Forgot password?”.'); return; }
+      auth.sendPasswordResetEmail(em).then(function () { signInScreen('Password reset email sent to ' + esc(em) + '.'); }).catch(fail);
+    };
   }
   function standalone() { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } }
+  /* sign-in / database errors in plain words */
+  var FRIENDLY = {
+    'auth/invalid-credential': 'Wrong email or password.',
+    'auth/wrong-password': 'Wrong email or password.',
+    'auth/user-not-found': 'No account with that email — tap “Create account”.',
+    'auth/email-already-in-use': 'That email already has an account — tap “Sign in”.',
+    'auth/weak-password': 'Use at least 6 characters.',
+    'auth/invalid-email': 'That email doesn’t look right.',
+    'auth/popup-closed-by-user': 'Sign-in window was closed.',
+    'auth/cancelled-popup-request': 'Sign-in window was closed.',
+    'auth/missing-password': 'Enter your password.',
+    'auth/too-many-requests': 'Too many tries — wait a few minutes, or tap “Forgot password?”.',
+    'unavailable': 'Couldn’t connect to the team database (the connection looks weak or blocked).',
+    'auth/network-request-failed': 'No connection — check your signal or Wi-Fi and try again.',
+    'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).'
+  };
   function friendly(e) {
-    var m = { 'auth/invalid-credential': 'Wrong email or password.', 'auth/wrong-password': 'Wrong email or password.', 'auth/user-not-found': 'No account with that email — tap “Create account”.',
-      'auth/email-already-in-use': 'That email already has an account — tap “Sign in”.', 'auth/weak-password': 'Use at least 6 characters.', 'auth/invalid-email': 'That email doesn’t look right.',
-      'auth/popup-closed-by-user': 'Sign-in window was closed.', 'auth/cancelled-popup-request': 'Sign-in window was closed.', 'auth/missing-password': 'Enter your password.', 'auth/too-many-requests': 'Too many tries — wait a few minutes, or tap “Forgot password?”.', 'unavailable': 'Couldn’t connect to the team database (the connection looks weak or blocked).', 'auth/network-request-failed': 'No connection — check your signal or Wi-Fi and try again.', 'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).' };
-    if (e && !m[e.code] && /client is offline/i.test(e.message || '')) return m.unavailable;
-    return m[e && e.code] || (e && e.message) || 'Something went wrong.';
+    if (e && !FRIENDLY[e.code] && /client is offline/i.test(e.message || '')) return FRIENDLY.unavailable;
+    return FRIENDLY[e && e.code] || (e && e.message) || 'Something went wrong.';
   }
   function verifyScreen(user) {
     showGate('<h2>Check your email</h2><p class="hint">We sent a verification link to <b>' + esc(user.email) + '</b>. Tap it, then come back here.</p>' +

@@ -40,9 +40,24 @@
   function planItem(id, side) {
     var p = side === 'off' ? A.findOff(id) : A.findDef(id); if (!p) return '';
     var s = ST.playStats({ side: side })[id], r = ST.rating(id);
-    return '<div class="plan-item" data-id="' + esc(id) + '" data-side="' + side + '"><div class="thumb">' + A.thumb(p, [-6, 16]) + '</div>' +
-      '<div class="pi-body"><b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b><span class="muted">' + (s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet') + (r ? ' · ' + ICON(r > 0 ? 'up' : 'down') : '') + '</span>' + (function () { var rep = A.playReport && A.playReport(side, id); if (!rep || !ST.S.data.roster.length) return ''; return rep.warnCount ? '<span class="pi-warn">' + ICON('warn') + ' ' + rep.warnCount + ' fit warning' + (rep.warnCount > 1 ? 's' : '') + '</span>' : rep.open ? '<span class="muted">' + rep.open + ' spots open</span>' : '<span class="pi-ok">' + ICON('check') + ' assigned</span>'; })() + '</div>' +
-      '<button class="x" data-rm="1" title="Remove">✕</button></div>';
+    var record = s && s.calls ? s.ok + '/' + s.calls + ' success' : 'no results yet';
+    var rated = r ? ' · ' + ICON(r > 0 ? 'up' : 'down') : '';
+    return '<div class="plan-item" data-id="' + esc(id) + '" data-side="' + side + '">' +
+        '<div class="thumb">' + A.thumb(p, [-6, 16]) + '</div>' +
+        '<div class="pi-body">' +
+          '<b><span class="num">' + esc(p.num) + '</span>' + esc(p.name) + '</b>' +
+          '<span class="muted">' + record + rated + '</span>' + assignStatus(side, id) +
+        '</div>' +
+        '<button class="x" data-rm="1" title="Remove">✕</button>' +
+      '</div>';
+  }
+  /* "2 fit warnings" / "3 spots open" / "assigned" — only once there's a roster */
+  function assignStatus(side, id) {
+    var rep = A.playReport && A.playReport(side, id);
+    if (!rep || !ST.S.data.roster.length) return '';
+    if (rep.warnCount) return '<span class="pi-warn">' + ICON('warn') + ' ' + rep.warnCount + ' fit warning' + (rep.warnCount > 1 ? 's' : '') + '</span>';
+    if (rep.open) return '<span class="muted">' + rep.open + ' spots open</span>';
+    return '<span class="pi-ok">' + ICON('check') + ' assigned</span>';
   }
   function renderPlan() {
     var g = g0();
@@ -191,10 +206,17 @@
   function renderLog() {
     var g = g0();
     var items = g ? g.log.slice(-8).reverse() : [];
-    $('#lg-list').innerHTML = items.length ? '<div class="log-head">Recent</div>' + items.map(function (l) {
-      var ok = ST.resultInfo(l.side, l.result).ok;
-      return '<div class="log-item"><span class="dot ' + (ok ? 'good' : 'bad') + '"></span><span>' + ICON(l.side === 'def' ? 'shield' : 'football') + ' ' + esc(A.playName(l.play)) + '</span><span class="muted">' + ORD[l.down || 1] + ' · ' + esc(ST.resultInfo(l.side, l.result).label) + (l.yds != null ? ' · ' + (l.yds > 0 ? '+' : '') + l.yds : '') + '</span><button class="x" data-del="' + l.id + '">✕</button></div>';
-    }).join('') : '<p class="hint">Nothing logged for this game yet.</p>';
+    if (!items.length) { $('#lg-list').innerHTML = '<p class="hint">Nothing logged for this game yet.</p>'; return; }
+    $('#lg-list').innerHTML = '<div class="log-head">Recent</div>' + items.map(function (l) {
+      var res = ST.resultInfo(l.side, l.result);
+      var yds = l.yds != null ? ' · ' + (l.yds > 0 ? '+' : '') + l.yds : '';
+      return '<div class="log-item">' +
+          '<span class="dot ' + (res.ok ? 'good' : 'bad') + '"></span>' +
+          '<span>' + ICON(l.side === 'def' ? 'shield' : 'football') + ' ' + esc(A.playName(l.play)) + '</span>' +
+          '<span class="muted">' + ORD[l.down || 1] + ' · ' + esc(res.label) + yds + '</span>' +
+          '<button class="x" data-del="' + l.id + '">✕</button>' +
+        '</div>';
+    }).join('');
   }
   $('#lg-list').addEventListener('click', function (e) {
     var b = e.target.closest('[data-del]'); if (!b) return;

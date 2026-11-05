@@ -137,8 +137,16 @@
   /* ================= PLAYS TAB ================= */
   var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false };
 
-  var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([['team', 'Team plays (designed)'], ['t:pass', '— Pass plays'], ['t:run', '— Runs'], ['t:vs-blitz', '— vs blitz'], ['t:vs-man', '— vs man'], ['t:vs-zone', '— vs zone'], ['t:third-down', '— 3rd down'], ['t:short-yardage', '— Short yardage']]);
-  var DEF_FILTERS = [['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'], ['t:no-blitz', 'No blitz'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']];
+  /* Category dropdown: [value, label]. 't:' = filter by tag */
+  var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([
+    ['team', 'Team plays (designed)'], ['t:pass', '— Pass plays'], ['t:run', '— Runs'],
+    ['t:vs-blitz', '— vs blitz'], ['t:vs-man', '— vs man'], ['t:vs-zone', '— vs zone'],
+    ['t:third-down', '— 3rd down'], ['t:short-yardage', '— Short yardage']
+  ]);
+  var DEF_FILTERS = [
+    ['all', 'All defense'], ['t:man', 'Man'], ['t:zone', 'Zone'], ['t:pressure', 'Pressure / blitz'],
+    ['t:no-blitz', 'No blitz'], ['t:third-down', '3rd down'], ['t:red-zone', 'Red zone / prevent']
+  ];
   function fillCatSelect() {
     var opts = view.side === 'off' ? OFF_FILTERS : DEF_FILTERS;
     $('#f-cat').innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + esc(o[1]) + '</option>'; }).join('');
@@ -394,9 +402,16 @@
     var all = ST.playStats({ side: side })[id];
     if (!all || !all.calls) return '<p class="hint">No results logged yet. Log plays from Game Day and they’ll show up here.</p>';
     var byOpp = {};
-    ST.entries({ side: side }).forEach(function (l) { if (l.play !== id) return; var o = byOpp[l.opp] || (byOpp[l.opp] = { n: 0, ok: 0 }); o.n++; if (ST.resultInfo(side, l.result).ok) o.ok++; });
-    return '<div class="rec-big"><b>' + pct(all.ok / all.calls) + '</b><span>' + all.ok + ' of ' + all.calls + ' successful' + (all.ydsN ? ' · ' + (all.yds / all.ydsN).toFixed(1) + ' yds avg' : '') + (all.td ? ' · ' + all.td + ' TD' : '') + (all.to ? ' · ' + all.to + (side === 'off' ? ' TO' : ' INT') : '') + '</span></div>' +
-      '<ul class="by-opp">' + Object.keys(byOpp).map(function (o) { return '<li><span>vs ' + esc(o) + '</span><b>' + byOpp[o].ok + '/' + byOpp[o].n + '</b></li>'; }).join('') + '</ul>';
+    ST.entries({ side: side }).forEach(function (l) {
+      if (l.play !== id) return;
+      var o = byOpp[l.opp] || (byOpp[l.opp] = { n: 0, ok: 0 });
+      o.n++; if (ST.resultInfo(side, l.result).ok) o.ok++;
+    });
+    var extra = (all.ydsN ? ' · ' + (all.yds / all.ydsN).toFixed(1) + ' yds avg' : '') + (all.td ? ' · ' + all.td + ' TD' : '') +
+      (all.to ? ' · ' + all.to + (side === 'off' ? ' TO' : ' INT') : '');
+    var opps = Object.keys(byOpp).map(function (o) { return '<li><span>vs ' + esc(o) + '</span><b>' + byOpp[o].ok + '/' + byOpp[o].n + '</b></li>'; }).join('');
+    return '<div class="rec-big"><b>' + pct(all.ok / all.calls) + '</b><span>' + all.ok + ' of ' + all.calls + ' successful' + extra + '</span></div>' +
+      '<ul class="by-opp">' + opps + '</ul>';
   }
 
   function select(id, keep) {
@@ -420,10 +435,11 @@
       $('#v-meta').textContent = (f.name || '') + (view.flip ? ' (flipped)' : '') + ' · ' + (isRun(p) ? 'Run' : 'Pass') + ' · ' + where + (CAT_NAME[p.cat] ? ' · ' + CAT_NAME[p.cat] : '');
       var res = E.validate(p);
       var lg = $('#v-legal'); lg.className = 'legal ' + (res.legal ? 'ok' : 'bad'); lg.textContent = res.legal ? '✓ LEGAL' : '✕ RULE ISSUE';
-      if (hasMods()) { var mm = view.mods[view.id], bits = []; if (Object.keys(mm.pts).length) bits.push('routes reshaped (' + Object.keys(mm.pts).join(', ') + ')'); if (mm.at != null && p.events[0] && p.events[0].at != null) bits.push('catch spot pinned ' + mm.at.toFixed(1) + ' yds along ' + mm.atFor + '’s route'); if (mm.roll && canRetarget(p)) bits.push('QB rolls ' + (mm.roll === 'L' ? 'left' : 'right')); if (bits.length) info += '<div class="card span2 throw-note">' + ICON('pen') + ' <span>Adjusted: ' + bits.join(' · ') + '. View-only — tap <b>Edit copy</b> to save it as a team play, or <b>Reset changes</b>.</span></div>'; }
-      if (p.events[0] && base.events[0] && p.events[0].to !== base.events[0].to) info += '<div class="card span2 throw-note">' + ICON('target') + ' <span>Showing the throw to <b>' + p.events[0].to + '</b> instead of ' + base.events[0].to + ' (as drawn). This only changes the view — the saved play is unchanged.</span></div>';
-      info += '<div class="card"><h3>Progression</h3><ol class="reads">' + ((p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>') + '</ol></div>';
-      info += '<div class="card"><h3>Coaching points</h3><p>' + esc(p.notes || '—') + '</p>' + (p.events.some(function (e) { return e.brk != null; }) ? '<p class="hint">● Yellow dot = where the QB lets it go (receiver’s break). Dotted tail = run after the catch.</p>' : '') + '</div>';
+      info += adjustedNote(p) + retargetNote(p, base);
+      var reads = (p.reads || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') || '<li>—</li>';
+      info += '<div class="card"><h3>Progression</h3><ol class="reads">' + reads + '</ol></div>';
+      var dotHint = p.events.some(function (e) { return e.brk != null; }) ? '<p class="hint">● Yellow dot = where the QB lets it go (receiver’s break). Dotted tail = run after the catch.</p>' : '';
+      info += '<div class="card"><h3>Coaching points</h3><p>' + esc(p.notes || '—') + '</p>' + dotHint + '</div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'off') + '</div>';
       if (window.APP && APP.assignmentCardHTML) info += APP.assignmentCardHTML(id, 'off');
       info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + res.issues.map(function (i) { return '<li class="' + i.level + '">' + esc(i.msg) + '</li>'; }).join('') + '</ul></div>';
@@ -442,11 +458,7 @@
       info += '<div class="card"><h3>Strengths / weaknesses</h3><p><b class="good">+</b> ' + esc(d.strengths) + '</p><p><b class="bad">−</b> ' + esc(d.weaknesses) + '</p></div>';
       info += '<div class="card"><h3>Our results</h3>' + recordHTML(id, 'def') + '</div>';
       if (window.APP && APP.assignmentCardHTML) info += APP.assignmentCardHTML(id, 'def');
-      var bl = d.defenders.filter(function (x) { return x.job === 'blitz'; });
-      info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + (bl.length ? bl.map(function (b) {
-        var off = Math.abs(b.start[0] - 12.5), ok = off >= 1 && b.start[1] >= 7;
-        return '<li class="' + (ok ? 'ok' : 'error') + '">' + esc(b.label) + ' lines up ' + b.start[1] + ' yds deep, ' + off.toFixed(1) + ' yds ' + (b.start[0] < 12.5 ? 'left' : 'right') + ' of the ball' + (ok ? ' — legal (7+ yds, 3+ ft off the ball)' : ' — must be 7+ yds deep and 3+ ft off the ball') + '</li>';
-      }).join('') + '<li class="info">Blitz in a straight line at the QB. A receiver who moves into that path is impeding the blitzer (−5, loss of down on them).</li>' : '<li class="ok">No blitzer — nobody crosses the line until a handoff, pitch or pass.</li>') + (bl.length > 2 ? '<li class="error">Max 2 blitzers.</li>' : '') + '</ul></div>';
+      info += '<div class="card"><h3>Rules check</h3><ul class="checks">' + blitzChecks(d) + '</ul></div>';
       info += '<div class="card span2 legend">' + D.legendHTML() + '<span class="muted">Offense is faded — pick any of our plays above to test the coverage against it.</span></div>';
     }
     $('#v-info').innerHTML = info;
@@ -458,6 +470,37 @@
     renderList();
     try { if (!base.shared) history.replaceState(null, '', '#' + (side === 'off' ? 'play' : 'def') + '=' + encodeURIComponent(id)); } catch (e) { }
   }
+  /* "Adjusted: routes reshaped (X) · catch spot pinned … · QB rolls left" — only when something was tweaked */
+  function adjustedNote(p) {
+    if (!hasMods()) return '';
+    var mm = view.mods[view.id], bits = [];
+    if (Object.keys(mm.pts).length) bits.push('routes reshaped (' + Object.keys(mm.pts).join(', ') + ')');
+    if (mm.at != null && p.events[0] && p.events[0].at != null) bits.push('catch spot pinned ' + mm.at.toFixed(1) + ' yds along ' + mm.atFor + '’s route');
+    if (mm.roll && canRetarget(p)) bits.push('QB rolls ' + (mm.roll === 'L' ? 'left' : 'right'));
+    if (!bits.length) return '';
+    return '<div class="card span2 throw-note">' + ICON('pen') + ' <span>Adjusted: ' + bits.join(' · ') +
+      '. View-only — tap <b>Edit copy</b> to save it as a team play, or <b>Reset changes</b>.</span></div>';
+  }
+  /* shown when "QB throws to" picked someone other than the drawn target */
+  function retargetNote(p, base) {
+    if (!p.events[0] || !base.events[0] || p.events[0].to === base.events[0].to) return '';
+    return '<div class="card span2 throw-note">' + ICON('target') + ' <span>Showing the throw to <b>' + p.events[0].to + '</b> instead of ' + base.events[0].to +
+      ' (as drawn). This only changes the view — the saved play is unchanged.</span></div>';
+  }
+  /* defense rules check: every blitzer 7+ yds deep and 3+ ft (1 yd) off the ball, max 2 */
+  function blitzChecks(d) {
+    var bl = d.defenders.filter(function (x) { return x.job === 'blitz'; });
+    if (!bl.length) return '<li class="ok">No blitzer — nobody crosses the line until a handoff, pitch or pass.</li>';
+    var rows = bl.map(function (b) {
+      var off = Math.abs(b.start[0] - 12.5), ok = off >= 1 && b.start[1] >= 7;
+      var side = b.start[0] < 12.5 ? 'left' : 'right';
+      var verdict = ok ? ' — legal (7+ yds, 3+ ft off the ball)' : ' — must be 7+ yds deep and 3+ ft off the ball';
+      return '<li class="' + (ok ? 'ok' : 'error') + '">' + esc(b.label) + ' lines up ' + b.start[1] + ' yds deep, ' + off.toFixed(1) + ' yds ' + side + ' of the ball' + verdict + '</li>';
+    }).join('');
+    return rows + '<li class="info">Blitz in a straight line at the QB. A receiver who moves into that path is impeding the blitzer (−5, loss of down on them).</li>' +
+      (bl.length > 2 ? '<li class="error">Max 2 blitzers.</li>' : '');
+  }
+
   function updateRateAndPlan() {
     var id = view.side === 'off' ? view.id : view.defId, r = ST.rating(id);
     $$('#v-rate button').forEach(function (b) { b.classList.toggle('on', +b.dataset.r === r); });

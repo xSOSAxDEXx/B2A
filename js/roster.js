@@ -155,8 +155,11 @@
   function renderAlts() {
     editing.offAlt = editing.offAlt || []; editing.defAlt = editing.defAlt || [];
     var offPrim = editing.offPos === 'WR' ? ['X', 'Y', 'Z'] : [editing.offPos];
-    $('.alt-picks[data-name="offAlt"]').innerHTML = OFF_ALT.filter(function (o) { return offPrim.indexOf(o[0]) < 0; }).map(function (o) { return '<button type="button" class="chip' + (editing.offAlt.indexOf(o[0]) >= 0 ? ' on' : '') + '" data-k="' + o[0] + '">' + o[1] + '</button>'; }).join('');
-    $('.alt-picks[data-name="defAlt"]').innerHTML = editing.defPos === 'ANY' ? '<span class="muted">Plays anywhere</span>' : DEF_ALT.filter(function (o) { return o[0] !== editing.defPos; }).map(function (o) { return '<button type="button" class="chip' + (editing.defAlt.indexOf(o[0]) >= 0 ? ' on' : '') + '" data-k="' + o[0] + '">' + o[1] + '</button>'; }).join('');
+    function chips(list, on) { return list.map(function (o) { return '<button type="button" class="chip' + (on.indexOf(o[0]) >= 0 ? ' on' : '') + '" data-k="' + o[0] + '">' + o[1] + '</button>'; }).join(''); }
+    $('.alt-picks[data-name="offAlt"]').innerHTML = chips(OFF_ALT.filter(function (o) { return offPrim.indexOf(o[0]) < 0; }), editing.offAlt);
+    $('.alt-picks[data-name="defAlt"]').innerHTML = editing.defPos === 'ANY'
+      ? '<span class="muted">Plays anywhere</span>'
+      : chips(DEF_ALT.filter(function (o) { return o[0] !== editing.defPos; }), editing.defAlt);
   }
   $('#ro-add').addEventListener('click', function () { openForm(null); });
   $('#ro-form').addEventListener('click', function (e) {
@@ -188,12 +191,16 @@
     var num = function (p) { return p.number === '' || p.number == null || isNaN(+p.number) ? 999 : +p.number; };   // #0 sorts first, no number sorts last
     var r = roster().slice().sort(function (a, b) { return num(a) - num(b) || a.name.localeCompare(b.name); });
     $('#ro-count').textContent = r.length ? '· ' + r.length + ' players' : '';
-    $('#ro-list').innerHTML = r.length ? r.map(function (p) {
-      return '<button class="ro-card" data-id="' + p.id + '"><span class="ro-num">' + esc(p.number || '–') + '</span><div class="ro-body"><b>' + esc(p.name) + '</b>' +
-        '<span class="muted"><b class="pos-p">' + esc(p.offPos || '—') + '</b>' + ((p.offAlt || []).length ? ' +' + esc(p.offAlt.join(' ')) : '') + ' · <b class="pos-p">' + esc(p.defPos || '—') + '</b>' + ((p.defAlt || []).length ? ' +' + esc(p.defAlt.join(' ')) : '') + (p.notes ? ' · ' + esc(p.notes) : '') + '</span><div class="tagrow">' +
-        (p.strengths || []).map(function (k) { return '<span class="tag tr-good">' + esc(TL[k]) + '</span>'; }).join('') +
-        (p.weaknesses || []).map(function (k) { return '<span class="tag tr-bad">' + esc(TL[k]) + '</span>'; }).join('') + '</div></div></button>';
-    }).join('') : '<p class="hint">No players yet. Add the team so you can assign spots on each play.</p>';
+    $('#ro-list').innerHTML = r.length ? r.map(rosterCard).join('') : '<p class="hint">No players yet. Add the team so you can assign spots on each play.</p>';
+  }
+  /* "WR +C · CB +S · notes" and strength/weakness tags */
+  function rosterCard(p) {
+    var also = function (alts) { return (alts || []).length ? ' +' + esc(alts.join(' ')) : ''; };
+    var positions = '<b class="pos-p">' + esc(p.offPos || '—') + '</b>' + also(p.offAlt) + ' · <b class="pos-p">' + esc(p.defPos || '—') + '</b>' + also(p.defAlt) + (p.notes ? ' · ' + esc(p.notes) : '');
+    var tags = function (keys, cls) { return (keys || []).map(function (k) { return '<span class="tag ' + cls + '">' + esc(TL[k]) + '</span>'; }).join(''); };
+    return '<button class="ro-card" data-id="' + p.id + '"><span class="ro-num">' + esc(p.number || '–') + '</span>' +
+      '<div class="ro-body"><b>' + esc(p.name) + '</b><span class="muted">' + positions + '</span>' +
+        '<div class="tagrow">' + tags(p.strengths, 'tr-good') + tags(p.weaknesses, 'tr-bad') + '</div></div></button>';
   }
   $('#ro-list').addEventListener('click', function (e) {
     var c = e.target.closest('.ro-card'); if (!c) return;
@@ -267,7 +274,11 @@
       html += '<div class="group-label">' + s[1] + '</div>' + g.plan[s[0]].map(function (id) { var r = playReport(s[0], id); if (r) { warns += r.warnCount; open += r.open; } return playBlock(s[0], id); }).join('');
     });
     $('#as-list').innerHTML = html || '<p class="hint">The game plan is empty — add plays in Game Day.</p>';
-    $('#as-warn-sum').innerHTML = html ? (warns ? '<div class="as-sum warn">' + ICON('warn') + ' ' + warns + ' fit warning' + (warns > 1 ? 's' : '') + (open ? ' · ' + open + ' open spots' : '') + '</div>' : open ? '<div class="as-sum">' + open + ' open spots</div>' : '<div class="as-sum ok">' + ICON('check') + ' Every spot filled with no warnings</div>') : '';
+    var sum = '';
+    if (html && warns) sum = '<div class="as-sum warn">' + ICON('warn') + ' ' + warns + ' fit warning' + (warns > 1 ? 's' : '') + (open ? ' · ' + open + ' open spots' : '') + '</div>';
+    else if (html && open) sum = '<div class="as-sum">' + open + ' open spots</div>';
+    else if (html) sum = '<div class="as-sum ok">' + ICON('check') + ' Every spot filled with no warnings</div>';
+    $('#as-warn-sum').innerHTML = sum;
   }
   $('#as-list').addEventListener('change', function (e) {
     var sel = e.target.closest('select[data-role]'); if (!sel) return;
@@ -297,7 +308,9 @@
     if (!A.inPlan(id, side) || !roster().length) return '';
     var rep = playReport(side, id); if (!rep) return '';
     return '<div class="card"><h3>' + ICON('users') + ' Who’s playing it</h3><ul class="as-mini">' + rep.rows.map(function (r) {
-      return '<li class="' + (r.fit.warns.length ? 'w' : '') + '"><b>' + esc(r.role) + '</b><span>' + (r.p ? esc((r.p.number ? '#' + r.p.number + ' ' : '') + r.p.name) : '<i class="muted">open</i>') + '</span>' + (r.fit.warns.length ? '<em>' + ICON('warn') + ' ' + esc(r.fit.warns[0]) + '</em>' : '') + '</li>';
+      var who = r.p ? esc((r.p.number ? '#' + r.p.number + ' ' : '') + r.p.name) : '<i class="muted">open</i>';
+      var warn = r.fit.warns.length ? '<em>' + ICON('warn') + ' ' + esc(r.fit.warns[0]) + '</em>' : '';
+      return '<li class="' + (r.fit.warns.length ? 'w' : '') + '"><b>' + esc(r.role) + '</b><span>' + who + '</span>' + warn + '</li>';
     }).join('') + '</ul><button class="btn small" onclick="APP.showTab(\'roster\')">Edit assignments</button></div>';
   };
   A.playReport = playReport;
