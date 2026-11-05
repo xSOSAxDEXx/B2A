@@ -36,8 +36,11 @@
       '<input id="g-email" type="email" placeholder="Email" autocomplete="email">' +
       '<input id="g-pass" type="password" placeholder="Password (6+ characters)" autocomplete="current-password">' +
       '<div class="gate-row"><button class="btn" id="g-in">Sign in</button><button class="btn ghost" id="g-up">Create account</button></div>' +
-      '<button class="linkbtn" id="g-reset">Forgot password?</button>');
+      '<button class="linkbtn" id="g-reset">Forgot password?</button>' +
+      (standalone() ? '<p class="hint gate-note">Opened from your home-screen icon: Google sign-in often doesn’t work here on iPhone. Use <b>email + password</b>, or open the site in Safari to sign in with Google.</p>' : ''));
     var g = function (id) { return document.getElementById(id); };
+    // Enter in the email/password boxes signs in
+    ['g-email', 'g-pass'].forEach(function (id) { g(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); g('g-in').click(); } }); });
     function fail(e) { signInScreen(esc(friendly(e))); }
     g('g-google').onclick = function () { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function (e) { if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') { try { sessionStorage.setItem('b2a.redirect', '1'); } catch (x) { } auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider()); } else fail(e); }); };
     g('g-in').onclick = function () { auth.signInWithEmailAndPassword(g('g-email').value.trim(), g('g-pass').value).catch(fail); };
@@ -47,10 +50,11 @@
     };
     g('g-reset').onclick = function () { var em = g('g-email').value.trim(); if (!em) { signInScreen('Enter your email first, then tap “Forgot password?”.'); return; } auth.sendPasswordResetEmail(em).then(function () { signInScreen('Password reset email sent to ' + esc(em) + '.'); }).catch(fail); };
   }
+  function standalone() { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } }
   function friendly(e) {
     var m = { 'auth/invalid-credential': 'Wrong email or password.', 'auth/wrong-password': 'Wrong email or password.', 'auth/user-not-found': 'No account with that email — tap “Create account”.',
       'auth/email-already-in-use': 'That email already has an account — tap “Sign in”.', 'auth/weak-password': 'Use at least 6 characters.', 'auth/invalid-email': 'That email doesn’t look right.',
-      'auth/popup-closed-by-request': 'Sign-in window was closed.', 'unavailable': 'Couldn’t connect to the team database (the connection looks weak or blocked).', 'auth/network-request-failed': 'No connection — check your signal or Wi-Fi and try again.', 'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).' };
+      'auth/popup-closed-by-user': 'Sign-in window was closed.', 'auth/cancelled-popup-request': 'Sign-in window was closed.', 'auth/missing-password': 'Enter your password.', 'auth/too-many-requests': 'Too many tries — wait a few minutes, or tap “Forgot password?”.', 'unavailable': 'Couldn’t connect to the team database (the connection looks weak or blocked).', 'auth/network-request-failed': 'No connection — check your signal or Wi-Fi and try again.', 'auth/unauthorized-domain': 'This site address isn’t on Firebase’s authorized domains list yet (Authentication → Settings).' };
     if (e && !m[e.code] && /client is offline/i.test(e.message || '')) return m.unavailable;
     return m[e && e.code] || (e && e.message) || 'Something went wrong.';
   }
@@ -114,7 +118,7 @@
       if (!force && last[k] === now[k]) return;
       var val = JSON.parse(now[k]);
       if (k === 'meta') { val.updated = new Date().toISOString(); batch.set(teamRef, val, { merge: true }); }
-      else if (k.indexOf('log/') === 0 && !last[k] && !force) { val.by = C.user.uid; val.byName = C.user.displayName || C.user.email; batch.set(refFor(k), val); }
+      else if (k.indexOf('log/') === 0 && !last[k] && !force) { val.by = C.user.uid; val.byName = val.byName || (C.member && C.member.name) || C.user.displayName || C.user.email; batch.set(refFor(k), val); }
       else batch.set(refFor(k), val);
       n++; ops.push(k);
     });

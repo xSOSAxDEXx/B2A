@@ -18,7 +18,7 @@
     var off = ST.entries({ opp: f.opp, side: 'off' }), def = ST.entries({ opp: f.opp, side: 'def' });
     var offOk = off.filter(function (l) { return ST.resultInfo('off', l.result).ok; }).length;
     var defOk = def.filter(function (l) { return ST.resultInfo('def', l.result).ok; }).length;
-    var tds = off.filter(function (l) { return l.result === 'td'; }).length;
+    var tds = off.filter(function (l) { return l.result === 'td' && l.sit !== 'pat1' && l.sit !== 'pat2'; }).length;   // extra-point tries aren't touchdowns
     $('#st-tiles').innerHTML = [
       ['Record', W + '–' + L + (T ? '–' + T : '')], ['Points', PF + ' / ' + PA], ['Offense success', off.length ? pct(offOk / off.length) : '—', off.length + ' plays'],
       ['Defense stop rate', def.length ? pct(defOk / def.length) : '—', def.length + ' plays'], ['Offensive TDs', String(tds)]

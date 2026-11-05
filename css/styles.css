@@ -125,8 +125,8 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
 .yd-label { fill: rgba(255, 255, 255, .45); font: 600 11px Inter; text-anchor: end; }
 .los { stroke: #2ee6ff; stroke-width: 3; }
 .los-label { fill: #9ad9ff; font: 700 10px Inter; letter-spacing: .08em; }
-.rushline { stroke: #f87171; stroke-width: 2; stroke-dasharray: 8 6; opacity: .8; }
-.rush-label { fill: #ff9ab8; font: 700 10px Inter; letter-spacing: .08em; }
+.blitzline { stroke: #f87171; stroke-width: 2; stroke-dasharray: 8 6; opacity: .8; }
+.blitz-label { fill: #ff9ab8; font: 700 10px Inter; letter-spacing: .08em; }
 .endzone { fill: rgba(198, 244, 50, .14); }
 .ez-text { fill: rgba(198, 244, 50, .4); font: 800 34px 'Barlow Condensed'; text-anchor: middle; dominant-baseline: middle; letter-spacing: .3em; }
 .norun { fill: rgba(248, 113, 113, .15); }
@@ -224,7 +224,7 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
   #play-list { flex-direction: row; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
   #play-list .group-label { display: none; }
   #play-list .pcard { min-width: 220px; scroll-snap-align: start; }
-  .designer, .gd-grid { grid-template-columns: 1fr; }
+  .designer, .gd-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 620px) {
   main { padding: 10px; }
@@ -246,8 +246,8 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
   .sheet .cell b { font: 800 12pt 'Barlow Condensed'; display: block; }
   .sheet .cell svg { width: 100%; display: block; }
   .sheet .turf { fill: #fff; } .sheet .stripe { fill: #fff; }
-  .sheet .yardline { stroke: #ccc; } .sheet .yd-label, .sheet .rush-label, .sheet .zone-label, .sheet .los-label { display: none; }
-  .sheet .los { stroke: #000; } .sheet .rushline { stroke: #999; }
+  .sheet .yardline { stroke: #ccc; } .sheet .yd-label, .sheet .blitz-label, .sheet .zone-label, .sheet .los-label { display: none; }
+  .sheet .los { stroke: #000; } .sheet .blitzline { stroke: #999; }
   .sheet .route { stroke-width: 4; } .sheet .pc { stroke: #000; }
   .sheet .endzone { fill: #eee; } .sheet .norun { fill: #f6f6f6; } .sheet .ez-text { fill: #bbb; }
   .sheet .pass-line, .sheet .pitch-line { stroke: #000; } .sheet .catch-ring { stroke: #000; }
@@ -417,8 +417,10 @@ select, input[type=text], input[type=number], textarea { background: var(--bg2);
   .plan-cols, .stats-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 620px) {
-  .tab span { display: none; }
-  .tab { font-size: 1.15rem; padding: 8px 6px; justify-content: center; }
+  /* phone: icon with a tiny label underneath so nobody has to guess what each icon is */
+  .tab { font-size: 1.15rem; padding: 6px 2px 4px; justify-content: center; flex-direction: column; gap: 2px; min-width: 0; }
+  .tab span { display: block; font-size: .56rem; letter-spacing: -.01em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; }
+  .tab .wd { display: none; }   /* "Game Day" → "Game" so it fits under the icon */
   .qz-opts.pics { grid-template-columns: 1fr 1fr; }
   .cov { grid-template-columns: 90px 1fr; }
   .head-right { flex-direction: column; align-items: flex-end; }
@@ -575,8 +577,8 @@ a { color: #7df9ff; }
 .yd-label { fill: rgba(158,246,255,.5); }
 .los { stroke: #2ee6ff; stroke-width: 3; filter: drop-shadow(0 0 4px #2ee6ff); }
 .los-label { fill: #7df9ff; }
-.rushline { stroke: #ff3ec8; opacity: .9; filter: drop-shadow(0 0 3px #ff3ec8); }
-.rush-label { fill: #ff8fe0; }
+.blitzline { stroke: #ff3ec8; opacity: .9; filter: drop-shadow(0 0 3px #ff3ec8); }
+.blitz-label { fill: #ff8fe0; }
 .endzone { fill: rgba(255,62,200,.13); }
 .ez-text { fill: rgba(255,143,224,.45); }
 .norun { fill: rgba(255,179,71,.12); }
@@ -682,3 +684,6 @@ body.cloud .local-only-inline { display: none; }
 .adjust-hint .adj-res { color: #fff; }
 #v-tweak { flex-wrap: wrap; }
 #v-roll-wrap { min-width: 170px; }
+
+.gate-note { margin: 10px 0 0; font-size: .8rem; }
+.tab .wd { font-style: normal; }

@@ -26,7 +26,7 @@
   $('#gd-new-game').addEventListener('click', function () {
     $('#gd-new-form').classList.remove('hidden');
     var d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
-    $('#gd-date-in').value = d.toISOString().slice(0, 10); $('#gd-opp-in').focus();
+    $('#gd-date-in').value = ST.localDate(d); $('#gd-opp-in').focus();
   });
   $('#gd-cancel').addEventListener('click', function () { $('#gd-new-form').classList.add('hidden'); });
   $('#gd-create').addEventListener('click', function () {
@@ -50,7 +50,7 @@
     $('#gd-add-off').innerHTML = optionGroups('off'); $('#gd-add-def').innerHTML = optionGroups('def');
     $('#gd-plan-off').innerHTML = g && g.plan.off.length ? g.plan.off.map(function (id) { return planItem(id, 'off'); }).join('') : '<p class="hint">No offensive plays yet.</p>';
     $('#gd-plan-def').innerHTML = g && g.plan.def.length ? g.plan.def.map(function (id) { return planItem(id, 'def'); }).join('') : '<p class="hint">No defensive calls yet.</p>';
-    $('#gd-notes').value = g ? g.notes || '' : '';
+    if (document.activeElement !== $('#gd-notes')) $('#gd-notes').value = g ? g.notes || '' : '';   // don't wipe what someone is typing when a live update arrives
   }
   function addPlan(side) {
     var g = g0(); if (!g) { A.toast('Create the game first.'); return; }
@@ -67,7 +67,11 @@
       A.openPlay(it.dataset.id, it.dataset.side);
     });
   });
-  $('#gd-notes').addEventListener('change', function (e) { var g = g0(); if (g) { g.notes = e.target.value; ST.save(); } });
+  // notes save a moment after you stop typing, so leaving the box doesn't redraw the page under your next tap
+  var notesT = null;
+  function saveNotes() { clearTimeout(notesT); var g = g0(), v = $('#gd-notes').value; if (g && (g.notes || '') !== v) { g.notes = v; ST.save(); } }
+  $('#gd-notes').addEventListener('input', function () { clearTimeout(notesT); notesT = setTimeout(saveNotes, 700); });
+  $('#gd-notes').addEventListener('change', saveNotes);
 
   /* ---------- scoreboard & series ---------- */
   function series() { var g = g0(); return g ? (g.series = g.series || { down: 1, sit: 'own', blitz: false }) : (window._tmpSeries = window._tmpSeries || { down: 1, sit: 'own', blitz: false }); }
@@ -170,17 +174,20 @@
     ST.logPlay({ side: side, play: $('#lg-play').value, vs: side === 'def' ? $('#lg-vs').value : '', down: s.down, sit: s.sit, result: k, yds: yds === '' ? null : +yds });
     $('#lg-yds').value = '';
     if (side === 'off') advance(k);
+    else if (k === 'td') { g.them += 6; ST.save(); A.toast('Logged — added 6 to ' + g.opp + '’s score.'); return; }
     A.toast('Logged: ' + A.playName($('#lg-play').value) + ' — ' + ST.resultInfo(side, k).label);
   });
   function advance(k) {
     var s = series(), g = g0();
     if (s.sit === 'pat1' || s.sit === 'pat2') { if (k === 'td') g.us += s.sit === 'pat1' ? 1 : 2; s.sit = 'own'; s.down = 1; ST.save(); return; }
     if (k === 'td') { g.us += 6; s.sit = 'pat1'; s.down = 1; A.toast('Touchdown! Pick the 1- or 2-pt try.'); }
-    else if (k === 'first') { s.sit = 'past'; s.down = 1; }
+    else if (k === 'first' && (s.sit === 'own' || s.sit === 'nrzmid')) { s.sit = 'past'; s.down = 1; }
+    else if (k === 'first') { A.toast('Past midfield there’s no new 1st down — it’s 3 downs to score.'); nextDown(s); }
     else if (k === 'to') { s.sit = 'own'; s.down = 1; }
-    else if (k !== 'pen') { if (s.down >= 3) { s.down = 1; s.sit = 'own'; A.toast('Turnover on downs — they start at their own 5.'); } else s.down++; }
+    else if (k !== 'pen') nextDown(s);
     ST.save();
   }
+  function nextDown(s) { if (s.down >= 3) { s.down = 1; s.sit = 'own'; A.toast('Turnover on downs — they start at their own 5.'); } else s.down++; }
   function renderLog() {
     var g = g0();
     var items = g ? g.log.slice(-8).reverse() : [];
@@ -191,7 +198,8 @@
   }
   $('#lg-list').addEventListener('click', function (e) {
     var b = e.target.closest('[data-del]'); if (!b) return;
-    var g = g0(); g.log = g.log.filter(function (l) { return l.id !== b.dataset.del; }); ST.save();
+    var g = g0(); if (!g || !confirm('Remove this logged play?')) return;
+    g.log = g.log.filter(function (l) { return l.id !== b.dataset.del; }); ST.save();
   });
 
   /* ---------- coach tools ---------- */

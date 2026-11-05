@@ -336,7 +336,8 @@
       '<div class="series-actions"><button class="btn primary" id="qz-again">Run it back</button><button class="btn" id="qz-other">Change position</button></div></div>';
     $('#qz-again').addEventListener('click', function () { Q.list = Q.mode === 'me' ? buildForPlayer(Q.pid).list : build(); Q.i = 0; Q.score = 0; Q.missed = []; showQ(); });
     $('#qz-other').addEventListener('click', setup);
-    root.addEventListener('click', function (e) { var a = e.target.closest('[data-open]'); if (a) { e.preventDefault(); A.openPlay(a.dataset.open, 'off'); } });
   }
+  // "Open play" links on the results screen (one listener for good — it used to be re-added after every quiz)
+  root.addEventListener('click', function (e) { var a = e.target.closest('[data-open]'); if (a) { e.preventDefault(); A.openPlay(a.dataset.open, 'off'); } });
   A.tabHooks.quiz = function () { if (!Q.list.length || Q.i >= Q.list.length || !root.innerHTML) setup(); };
 })();

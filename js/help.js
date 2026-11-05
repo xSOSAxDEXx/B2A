@@ -58,7 +58,7 @@
       '<li><b>Before the week:</b> Game Day → <b>＋ New game</b> (opponent + date). It copies your last plan vs that team if there is one.</li>' +
       '<li><b>Build the plan:</b> add offensive and defensive plays with the dropdowns, or tap <b>＋ Game plan</b> on any play. Add scouting notes.</li>' +
       '<li><b>Assign spots:</b> Roster → Game plan assignments → <b>Auto-assign best fits</b>, then adjust. ⚠ warnings mean a spot needs something that’s listed as that player’s weakness, he’s out of position, or he’s in two spots.</li>' +
-      '<li><b>During the game:</b> set the down and field position, check <b>Call this</b> for suggestions, and after each snap pick the play + result in <b>Log the last play</b> (add yards if you know them). Downs, first downs, touchdowns and turnovers on downs update automatically.</li>' +
+      '<li><b>During the game:</b> set the down and field position, check <b>Call this</b> for suggestions, and after each snap pick the play + result in <b>Log the last play</b> (add yards if you know them). Downs, first downs, touchdowns and turnovers on downs update automatically, and logging <b>Gave up TD</b> on defense adds 6 to their score. Tap ✕ on a logged play to remove a mistake.</li>' +
       '<li><b>After:</b> Stats shows what worked. Rate plays 👍/👎 on the play page — ratings feed the suggestions.</li>' +
       '<li><b>Backups:</b> Game Day → Coach tools → <i>Download backup</i>.</li>' +
       '</ol>' },

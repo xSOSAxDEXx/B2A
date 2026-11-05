@@ -15,6 +15,7 @@
   var DEF_POS = [['B', 'Blitzer'], ['CB', 'Corner'], ['M', 'Middle / linebacker'], ['S', 'Safety'], ['ANY', 'Anywhere']];
 
   function roster() { return ST.S.data.roster; }
+  function canEditAll() { var CL = window.B2A_CLOUD; return !(CL && CL.enabled) || CL.can('edit'); }
   function player(id) { return roster().filter(function (p) { return p.id === id; })[0]; }
   function game() { return ST.game(); }
 
@@ -91,7 +92,14 @@
     return res;
   }
   function rolesOf(side, play) { return side === 'off' ? ['QB', 'C', 'X', 'Y', 'Z'] : play.defenders.map(function (d) { return d.id; }); }
-  function needsOf(side, play, role) { return side === 'off' ? offNeeds(play, role) : defNeeds(play, role); }
+  var needsMemo = typeof WeakMap === 'function' ? new WeakMap() : null;   // plays come from the shared catalog, so each play's needs are worked out once
+  function needsOf(side, play, role) {
+    var m = needsMemo && (needsMemo.get(play) || (needsMemo.set(play, {}), needsMemo.get(play)));
+    if (m && m[role]) return m[role];
+    var n = side === 'off' ? offNeeds(play, role) : defNeeds(play, role);
+    if (m) m[role] = n;
+    return n;
+  }
 
   /* all warnings for one plan play (used here, in Game Day and in the Plays viewer) */
   function playReport(side, id) {
@@ -127,7 +135,7 @@
   }
   function openForm(p) {
     editing = p ? JSON.parse(JSON.stringify(p)) : { id: null, name: '', number: '', offPos: 'WR', defPos: 'CB', offAlt: [], defAlt: [], strengths: [], weaknesses: [], notes: '' };
-    editing.offAlt = editing.offAlt || []; editing.defAlt = editing.defAlt || [];
+    ['offAlt', 'defAlt', 'strengths', 'weaknesses'].forEach(function (k) { editing[k] = editing[k] || []; });   // older/imported entries may be missing these
     var f = $('#ro-form'); f.classList.remove('hidden');
     f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Name</span><input id="rf-name" value="' + esc(editing.name) + '" placeholder="Player name"></label>' +
       '<label class="dd small-in"><span>Number</span><input id="rf-num" type="number" min="0" max="99" value="' + esc(editing.number) + '"></label></div>' +
@@ -137,7 +145,7 @@
       '<div class="tr-label good">Strengths</div>' + chipPicker('strengths', editing.strengths) +
       '<div class="tr-label bad">Weaknesses</div>' + chipPicker('weaknesses', editing.weaknesses) +
       '<label class="dd"><span>Notes</span><input id="rf-notes" value="' + esc(editing.notes || '') + '" placeholder="Optional"></label>' +
-      '<div class="series-actions"><button class="btn primary" id="rf-save">Save player</button><button class="btn ghost" id="rf-cancel">Cancel</button>' + (editing.id ? '<button class="btn ghost danger" id="rf-del">Remove</button>' : '') + '</div>';
+      '<div class="series-actions"><button class="btn primary" id="rf-save">Save player</button><button class="btn ghost" id="rf-cancel">Cancel</button>' + (editing.id && canEditAll() ? '<button class="btn ghost danger" id="rf-del">Remove</button>' : '') + '</div>';
     renderAlts();
     $('#rf-off').addEventListener('change', function (e) { editing.offPos = e.target.value; editing.offAlt = editing.offAlt.filter(function (x) { return x !== editing.offPos; }); renderAlts(); });
     $('#rf-def').addEventListener('change', function (e) { editing.defPos = e.target.value; editing.defAlt = editing.defAlt.filter(function (x) { return x !== editing.defPos; }); renderAlts(); });
@@ -173,11 +181,12 @@
       editing.number = $('#rf-num').value; editing.offPos = $('#rf-off').value; editing.defPos = $('#rf-def').value; editing.notes = $('#rf-notes').value.trim();
       if (editing.id) ST.S.data.roster = roster().map(function (p) { return p.id === editing.id ? editing : p; });
       else { editing.id = ST.uid('p'); roster().push(editing); }
-      $('#ro-form').classList.add('hidden'); A.toast(editing.name + ' saved. Publish from Game Day to share the roster.'); editing = null; ST.save();
+      $('#ro-form').classList.add('hidden'); A.toast(editing.name + (A.isLive() ? ' saved for the whole team.' : ' saved. Publish from Game Day to share the roster.')); editing = null; ST.save();
     }
   });
   function renderRoster() {
-    var r = roster().slice().sort(function (a, b) { return (+a.number || 999) - (+b.number || 999); });
+    var num = function (p) { return p.number === '' || p.number == null || isNaN(+p.number) ? 999 : +p.number; };   // #0 sorts first, no number sorts last
+    var r = roster().slice().sort(function (a, b) { return num(a) - num(b) || a.name.localeCompare(b.name); });
     $('#ro-count').textContent = r.length ? '· ' + r.length + ' players' : '';
     $('#ro-list').innerHTML = r.length ? r.map(function (p) {
       return '<button class="ro-card" data-id="' + p.id + '"><span class="ro-num">' + esc(p.number || '–') + '</span><div class="ro-body"><b>' + esc(p.name) + '</b>' +

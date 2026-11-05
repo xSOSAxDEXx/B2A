@@ -398,8 +398,8 @@
       s += '<line x1="0" x2="' + W + '" y1="' + sy(yl) + '" y2="' + sy(yl) + '" class="yardline"/>';
       s += '<text x="' + (W - 6) + '" y="' + (sy(yl) - 4) + '" class="yd-label">' + (yl > 0 ? '+' : '') + yl + '</text>';
     }
-    s += '<line x1="0" x2="' + W + '" y1="' + sy(7) + '" y2="' + sy(7) + '" class="rushline"/>';
-    s += '<text x="6" y="' + (sy(7) - 5) + '" class="rush-label">7-YD BLITZ LINE</text>';
+    s += '<line x1="0" x2="' + W + '" y1="' + sy(7) + '" y2="' + sy(7) + '" class="blitzline"/>';
+    s += '<text x="6" y="' + (sy(7) - 5) + '" class="blitz-label">7-YD BLITZ LINE</text>';
     s += '<line x1="0" x2="' + W + '" y1="' + sy(0) + '" y2="' + sy(0) + '" class="los"/>';
     s += '<text x="6" y="' + (sy(0) - 5) + '" class="los-label">LOS</text>';
     return s;

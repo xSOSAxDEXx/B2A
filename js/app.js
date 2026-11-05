@@ -12,28 +12,41 @@
   }
   function b64e(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function b64d(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+  function isLive() { var C = window.B2A_CLOUD; return !!(C && C.enabled); }
   function pct(x) { return x == null ? '—' : Math.round(x * 100) + '%'; }
 
   var CAT_NAME = {}; B2A_CATS.forEach(function (c) { CAT_NAME[c[0]] = c[1]; });
   var shared = null;
 
-  /* ---------- play catalog ---------- */
-  function offPlays() {
+  /* ---------- play catalog ----------
+     Built once and re-used until the team plays change (it used to be re-cloned on every lookup).
+     Callers only read these objects; anything that edits a play clones it first. */
+  var cat = { key: null, off: [], offById: {}, def: null, defById: {} };
+  function buildOff() {
+    var tp = ST.S.data.teamPlays || [], key = JSON.stringify(tp) + (shared ? '|shared' : '');
+    if (cat.key === key) return;
     var list = B2A_PLAYS.map(function (p, i) { var c = E.clone(p); c.num = i + 1; return c; });
-    (ST.S.data.teamPlays || []).forEach(function (p, i) { var c = E.clone(p); c.custom = true; c.cat = c.cat || 'team'; c.num = 'T' + (i + 1); list.push(c); });
+    tp.forEach(function (p, i) { var c = E.clone(p); c.custom = true; c.cat = c.cat || 'team'; c.num = 'T' + (i + 1); list.push(c); });
     if (shared) list.push(shared);
-    return list;
+    cat.key = key; cat.off = list; cat.offById = {};
+    list.forEach(function (p) { if (!cat.offById[p.id]) cat.offById[p.id] = p; });
   }
-  function defPlays() { return B2A_DEF_PLAYS.map(function (p, i) { var c = E.clone(p); c.num = 'D' + (i + 1); c.side = 'def'; return c; }); }
-  function findOff(id) { return offPlays().filter(function (p) { return p.id === id; })[0]; }
-  function findDef(id) { return defPlays().filter(function (p) { return p.id === id; })[0]; }
+  function buildDef() {
+    if (cat.def) return;
+    cat.def = B2A_DEF_PLAYS.map(function (p, i) { var c = E.clone(p); c.num = 'D' + (i + 1); c.side = 'def'; return c; });
+    cat.def.forEach(function (d) { cat.defById[d.id] = d; });
+  }
+  function offPlays() { buildOff(); return cat.off.slice(); }
+  function defPlays() { buildDef(); return cat.def.slice(); }
+  function findOff(id) { buildOff(); return cat.offById[id]; }
+  function findDef(id) { buildDef(); return cat.defById[id]; }
   function findAny(id) { return findOff(id) || findDef(id); }
   function isRun(p) { return !(p.events || []).some(function (e) { return e.type === 'pass'; }); }
   function playName(id) { var p = findAny(id); return p ? p.name : id; }
   function playNum(id) { var p = findAny(id); return p ? p.num : '?'; }
 
   /* ---------- static diagrams ---------- */
-  var thumbCache = {};
+  var thumbCache = {}, thumbN = 0;
   function offSVG(p, crop, uid) { return E.staticPlaySVG(p, { crop: crop || [-7, 18], uid: uid }); }
   function defSVG(def, offId, crop, uid) {
     var off = findOff(offId || def.vs) || B2A_PLAYS[0];
@@ -43,8 +56,8 @@
       D.assignmentsSVG(ds, sim) + '<g class="ghost-off">' + E.playersSVG(sim, sim.tStart, null, { showBall: false }) + '</g>' + D.defendersSVG(ds, sim.tStart) + '</svg>';
   }
   function thumb(p, crop) {
-    var key = (p.side || 'off') + p.id + JSON.stringify(p).length + (crop || '');
-    if (!thumbCache[key]) thumbCache[key] = p.side === 'def' ? defSVG(p, null, crop, 't' + Object.keys(thumbCache).length) : offSVG(p, crop, 't' + Object.keys(thumbCache).length);
+    var key = (p.side || 'off') + JSON.stringify(p) + (crop || '');
+    if (!thumbCache[key]) thumbCache[key] = p.side === 'def' ? defSVG(p, null, crop, 't' + (thumbN++)) : offSVG(p, crop, 't' + (thumbN++));
     return thumbCache[key];
   }
 
@@ -104,6 +117,7 @@
     $$('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
     $$('.panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + name); });
     if (tabHooks[name]) tabHooks[name]();
+    try { sessionStorage.setItem('b2a.tab', name); } catch (e) { }   // a reload comes back to the same tab
     window.scrollTo({ top: 0 });
   }
   $$('.tab').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
@@ -335,7 +349,7 @@
       var cur = m.pts[drag.r][drag.i]; if (cur[0] === x && cur[1] === y) return;
       m.pts[drag.r][drag.i] = [x, y];
     }
-    viewer.load(currentOff(), vsDefense(), 'off'); adjustHint();
+    viewer.key = null; viewer.load(currentOff(), vsDefense(), 'off'); adjustHint();
   });
   function endDrag() { if (drag) { drag = null; select(view.id); } }
   $('#field').addEventListener('pointerup', endDrag); $('#field').addEventListener('pointercancel', endDrag);
@@ -346,6 +360,14 @@
     h.innerHTML = (pi ? 'Drag the <b>📍 pin</b> along ' + pi.r + '’s route to change where he catches it (the QB throws earlier or later to match). ' : '') +
       'Drag the <b>dots</b> to reshape routes. View-only — <b>Edit copy</b> saves it as a team play.' +
       (r ? '<br><b class="adj-res">→ ' + esc(D.describe(r)) + '</b>' : '');
+  }
+
+  /* reload the field only when something about the matchup changed, so live updates from teammates
+     (a rating, a logged play) don't restart the animation you're watching */
+  function loadViewer(off, def, mode, keep) {
+    var key = JSON.stringify([off, def, mode, view.adjust]);
+    if (keep && viewer.key === key && viewer.sim) { viewer.draw(); return; }
+    viewer.key = key; viewer.load(off, def, mode);
   }
 
   function currentDef() { var d = findDef(view.defId) || defPlays()[0]; return view.flip ? D.flipDefense(d) : d; }
@@ -378,7 +400,7 @@
       '<ul class="by-opp">' + Object.keys(byOpp).map(function (o) { return '<li><span>vs ' + esc(o) + '</span><b>' + byOpp[o].ok + '/' + byOpp[o].n + '</b></li>'; }).join('') + '</ul>';
   }
 
-  function select(id) {
+  function select(id, keep) {
     var side = view.side;
     if (side === 'off') view.id = id; else view.defId = id;
     fillVsSelect();
@@ -392,7 +414,7 @@
       $('#v-tweak-reset').classList.toggle('hidden', !hasMods() && !view.throwTo[view.id]);
       $('#field').classList.toggle('adjusting', view.adjust);
       var def = vsDefense();
-      viewer.load(p, def, 'off'); adjustHint();
+      loadViewer(p, def, 'off', keep); adjustHint();
       var f = E.FORMATIONS[p.formation] || {};
       $('#v-name').textContent = base.num + ' · ' + p.name;
       var where = p.ytg ? 'From the ' + p.ytg : (p.ytm ? p.ytm + ' yds from midfield' : 'Open field');
@@ -412,7 +434,7 @@
       var offId = view.vsDef[view.defId] || base.vs;
       var off = findOff(offId) || B2A_PLAYS[0];
       $('#v-throw-wrap').classList.add('hidden'); $('#v-tweak').classList.add('hidden'); $('#v-adjust-hint').classList.add('hidden'); $('#field').classList.remove('adjusting');
-      viewer.load(view.flip ? E.flipPlay(off) : off, d, 'def');
+      loadViewer(view.flip ? E.flipPlay(off) : off, d, 'def', keep);
       $('#v-name').textContent = base.num + ' · ' + d.name;
       $('#v-meta').textContent = d.front + ' · vs ' + off.name + (view.flip ? ' (flipped)' : '');
       var lg2 = $('#v-legal'); lg2.className = 'legal ok'; var nb = d.defenders.filter(function (x) { return x.job === 'blitz'; }).length; lg2.textContent = nb ? nb + ' BLITZER' + (nb > 1 ? 'S' : '') : 'NO BLITZ';
@@ -465,7 +487,7 @@
     var base = findOff(view.id); if (!base || !base.custom) return;
     if (!confirm('Delete "' + base.name + '" from team plays?')) return;
     ST.S.data.teamPlays = ST.S.data.teamPlays.filter(function (p) { return p.id !== base.id; }); ST.save();
-    select(B2A_PLAYS[0].id); toast('Deleted. Publish to remove it for the team.');
+    select(B2A_PLAYS[0].id); toast(isLive() ? 'Deleted for the whole team.' : 'Deleted. Publish to remove it for the team.');
   });
   $('#v-share').addEventListener('click', function () {
     var p = E.clone(currentOff()); delete p.num; delete p.custom; delete p.shared;
@@ -488,6 +510,8 @@
   function boot() {
     var h = location.hash;
     fillCatSelect();
+    var lastTab = null; try { lastTab = sessionStorage.getItem('b2a.tab'); } catch (e) { }
+    if (lastTab && lastTab !== 'plays' && h.indexOf('#p=') !== 0 && $('#tab-' + lastTab)) setTimeout(function () { showTab(lastTab); }, 0);
     if (h.indexOf('#p=') === 0) {
       try {
         shared = JSON.parse(b64d(h.slice(3))); shared.id = 'shared'; shared.shared = true; shared.num = 'S';
@@ -500,12 +524,12 @@
   }
 
   window.APP = {
-    $: $, $$: $$, esc: esc, toast: toast, copyText: copyText, pct: pct, E: E, D: D, ST: ST,
+    $: $, $$: $$, esc: esc, toast: toast, isLive: isLive, copyText: copyText, pct: pct, E: E, D: D, ST: ST,
     Animator: Animator, offPlays: offPlays, defPlays: defPlays, findOff: findOff, findDef: findDef, findAny: findAny,
     isRun: isRun, thumb: thumb, offSVG: offSVG, defSVG: defSVG, playName: playName, playNum: playNum, CAT_NAME: CAT_NAME,
     showTab: showTab, tabHooks: tabHooks, activeGame: activeGame, inPlan: inPlan, togglePlan: togglePlan,
     openPlay: function (id, side) { showTab('plays'); if ((side || 'off') !== view.side) { view.side = side || 'off'; $$('#side-switch button').forEach(function (x) { x.classList.toggle('on', x.dataset.side === view.side); }); fillCatSelect(); } select(id); },
-    refreshPlays: function () { thumbCache = {}; renderList(); select(view.side === 'off' ? view.id : view.defId); },
+    refreshPlays: function () { select(view.side === 'off' ? view.id : view.defId, true); },   // keep: don't restart a running animation if the play didn't change
     bootPlays: boot
   };
 })();

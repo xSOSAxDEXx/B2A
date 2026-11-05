@@ -20,6 +20,8 @@
   function resultInfo(side, k) { return (side === 'def' ? DEF_RESULTS : OFF_RESULTS).filter(function (r) { return r.k === k; })[0] || { label: k, ok: false }; }
 
   function empty() { return { version: 1, updated: null, teamPlays: [], ratings: {}, opponents: [], games: [], activeGame: null, roster: [] }; }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function localDate(d) { d = d || new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }   // today's date where you are (toISOString gives tomorrow's date on US evenings)
   function uid(p) { return (p || 'g') + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
   function loadLS(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
   function saveLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -106,7 +108,7 @@
     opp = (opp || '').trim() || 'Opponent';
     if (S.data.opponents.indexOf(opp) < 0) S.data.opponents.push(opp);
     var prev = S.data.games.slice().reverse().filter(function (g) { return g.opp === opp; })[0];
-    var g = { id: uid('g'), opp: opp, date: date || new Date().toISOString().slice(0, 10), us: 0, them: 0, plan: { off: [], def: [] }, assign: { off: {}, def: {} }, notes: '', log: [], series: { down: 1, sit: 'own' }, half: 1, to: { 1: false, 2: false } };
+    var g = { id: uid('g'), opp: opp, date: date || localDate(), us: 0, them: 0, plan: { off: [], def: [] }, assign: { off: {}, def: {} }, notes: '', log: [], series: { down: 1, sit: 'own' }, half: 1, to: { 1: false, 2: false } };
     if (prev) { g.plan = JSON.parse(JSON.stringify(prev.plan)); g.assign = JSON.parse(JSON.stringify(prev.assign || { off: {}, def: {} })); }   // start from last plan vs this team
     S.data.games.push(g); S.data.activeGame = g.id; save();
     return g;
@@ -152,6 +154,6 @@
     CFG: CFG, S: S, OFF_RESULTS: OFF_RESULTS, DEF_RESULTS: DEF_RESULTS, resultInfo: resultInfo,
     load: load, save: save, on: on, replaceData: replaceData, discardLocal: discardLocal, publish: publish, download: download, token: token,
     game: game, newGame: newGame, deleteGame: deleteGame, logPlay: logPlay, rating: rating, rate: rate,
-    entries: entries, playStats: playStats, successRate: successRate, uid: uid
+    entries: entries, playStats: playStats, successRate: successRate, uid: uid, localDate: localDate
   };
 })(window);
