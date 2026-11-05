@@ -10,6 +10,14 @@ node ../B2A-tests/run-all.js .             # from the B2A folder (on main or you
 ```
 Every check prints PASS or FAIL; the last line says whether everything passed. Run it before every push to main.
 
+## Security-rules tests (whenever `firestore.rules` changes)
+Runs `firestore.rules` in Google's local Firestore emulator (needs Java; never touches the real project):
+```
+cd ../B2A-tests && npm install          # first time only (downloads the emulator tools)
+npm run rules                           # expects the site checked out at ../B2A
+```
+It tries every save the site makes as coach / editor / player / outsider, with good and bad data (51 checks).
+
 ## What it checks
 1. Every tab loads with no script errors and no sideways scrolling, desktop (1366px) and phone (390px); every script/stylesheet carries the same `?v=` version.
 2. Every play passes the rules check (flipped too); every blitzer is 7+ yds deep and 1+ yd off the ball; the simulated outcome mix across all plays × coverages stays sane (interceptions 3–15%, incompletions 20–50%); no "rush/rusher" wording.
@@ -20,3 +28,4 @@ Every check prints PASS or FAIL; the last line says whether everything passed. R
 7. Old GitHub token wiped from devices; no test banner when signed in. Logins + live sync against a fake, in-memory Firebase (`mockfb.js`) — never the real team data: sign-in screen, Enter to sign in, player role, logged play saved with the roster name, downs sync, live updates don't restart the animation, players can't remove roster entries.
 
 When a feature changes on purpose, update the matching check here in the same session.
+8. Team plays + ratings in their own documents: the site keeps working on the old rules, the coach's first visit after the new rules moves the data, team plays with real routes save (Firestore can't store lists inside lists — the fake rejects them just like the real one), a refused save shows a message and doesn't block the next one, offline badge, offline cache on, sign-out wipes the device copy.

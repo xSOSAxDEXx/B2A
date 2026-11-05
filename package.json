@@ -1,0 +1,14 @@
+{
+  "name": "b2a-tests",
+  "private": true,
+  "description": "Browser + security-rules tests for the B2A playbook (not part of the site)",
+  "scripts": {
+    "browser": "node run-all.js ../B2A",
+    "rules": "firebase emulators:exec --only firestore --project demo-b2a \"node rules-test.js ../B2A/firestore.rules\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.14.1",
+    "firebase-tools": "13.29.1"
+  }
+}

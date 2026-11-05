@@ -194,6 +194,72 @@ async function page(b, url, opts = {}) {
     await p.context().close();
   }
 
+  /* 8. Phase 3: team plays + ratings in their own documents, old-rules fallback, offline */
+  {
+    const seed = (args) => {
+      window.__mockUser = { uid: 'u1', email: args.email, displayName: 'Coach', emailVerified: true, providerData: [{ providerId: 'google.com' }], reload: () => Promise.resolve(), getIdToken: () => Promise.resolve() };
+      window.__denyNew = args.deny;
+      const play = (id, name) => ({ id, name, cat: 'team', formation: 'spread', tags: ['pass'], players: {}, events: [{ type: 'pass', from: 'QB', to: 'X', brk: 0 }] });
+      window.__fs = { 'teams/b2a': { ownerUid: 'u1', opponents: [], activeGame: null, ratings: { 'slant-flat': 1, 'team-a': -1 }, teamPlays: [play('team-a', 'Alpha'), play('team-b', 'Bravo')] },
+        'teams/b2a/members/coach@x.com': { role: 'coach', name: 'Coach' }, 'teams/b2a/members/pat@x.com': { role: 'player', name: 'Pat' } };
+    };
+    const signIn = async (p) => { await p.fill('#g-email', 'x@x.com'); await p.fill('#g-pass', 'secret1'); await p.press('#g-pass', 'Enter'); await p.waitForTimeout(900); };
+    const names = (p) => p.evaluate(() => APP.offPlays().filter(x => x.custom).map(x => x.name).join(','));
+
+    // (a) rules not published yet: everything keeps working on the old layout
+    let p = await page(b, URL, { mock: true, init: seed, arg: { email: 'coach@x.com', deny: true } });
+    await signIn(p);
+    check('old rules: coach still gets in (no lock-out)', !(await p.evaluate(() => document.body.classList.contains('gated'))));
+    check('old rules: team plays + ratings still load from the old fields', (await names(p)) === 'Alpha,Bravo' && (await p.evaluate(() => APP.ST.rating('slant-flat'))) === 1);
+    await p.click('#v-rate button[data-r="-1"]'); await p.waitForTimeout(300);
+    check('old rules: a rating saves to the old field', (await p.evaluate(() => __fs['teams/b2a'].ratings['slant-flat'])) === -1);
+    await p.click('#v-edit'); await p.fill('#d-name', 'Routes'); await p.click('#d-save'); await p.waitForTimeout(400);
+    check('old rules: a team play with real routes saves (stored packed)', (await p.evaluate(() => (__fs['teams/b2a'].teamPlays || []).map(x => x.name).join())) === 'Alpha,Bravo,Routes');
+    check('old rules: nothing written to the new places', (await p.evaluate(() => Object.keys(__fs).some(k => /\/(plays|ratings)\//.test(k)))) === false);
+    check('no script errors (old rules)', !p.errs.length, p.errs);
+    await p.context().close();
+
+    // (b) new rules: the coach's first visit moves plays + ratings into their own documents
+    p = await page(b, URL, { mock: true, init: seed, arg: { email: 'coach@x.com', deny: false } });
+    await signIn(p); await p.waitForTimeout(400);
+    const st = await p.evaluate(() => ({ meta: Object.keys(__fs['teams/b2a']), plays: Object.keys(__fs).filter(k => k.includes('/plays/')).sort(), ratings: Object.keys(__fs).filter(k => k.includes('/ratings/')).map(k => k.split('/').pop() + '=' + __fs[k].v).sort() }));
+    check('new rules: old fields removed from the team doc', !st.meta.includes('teamPlays') && !st.meta.includes('ratings'), st.meta);
+    check('new rules: each team play is its own document', st.plays.join() === 'teams/b2a/plays/team-a,teams/b2a/plays/team-b', st.plays);
+    check('new rules: each rating is its own document', st.ratings.join() === 'slant-flat=1,team-a=-1', st.ratings);
+    check('new rules: plays keep their order (T1 Alpha, T2 Bravo)', (await names(p)) === 'Alpha,Bravo');
+    await p.click('#v-rate button[data-r="1"]'); await p.waitForTimeout(300);
+    check('rating toggled off deletes its document', !(await p.evaluate(() => 'teams/b2a/ratings/slant-flat' in __fs)));
+    await p.click('#v-edit'); await p.fill('#d-name', 'Charlie'); await p.click('#d-save'); await p.waitForTimeout(400);
+    check('a new team play is saved as its own document, listed last', (await names(p)) === 'Alpha,Bravo,Charlie' && (await p.evaluate(() => Object.keys(__fs).filter(k => k.includes('/plays/')).length)) === 3);
+    await p.click('#v-del'); await p.waitForTimeout(400);
+    check('deleting a team play deletes its document', (await p.evaluate(() => Object.keys(__fs).filter(k => k.includes('/plays/')).length)) === 2);
+    // a save Firestore refuses must say so and must not block the next save
+    const toasts = []; await p.exposeFunction('__toast', m => toasts.push(m));
+    await p.evaluate(() => { const o = APP.toast; APP.toast = m => { __toast(m); o(m); }; APP.ST.S.data.roster.push({ id: 'px', name: 'Bad', weird: [[1, 2]] }); APP.ST.save(); });
+    await p.waitForTimeout(300);
+    check('a refused save shows "Couldn’t save" instead of failing silently', toasts.some(m => /Couldn’t save/.test(m)), toasts);
+    await p.evaluate(() => { APP.ST.S.data.opponents.push('Jets'); APP.ST.save(); }); await p.waitForTimeout(300);
+    check('…and the next save still goes through', (await p.evaluate(() => (__fs['teams/b2a'].opponents || []).includes('Jets'))));
+    // offline indicator + offline cache
+    check('offline cache is switched on', await p.evaluate(() => window.__persistence === true));
+    await p.context().setOffline(true); await p.waitForTimeout(200);
+    check('no signal: "Offline" badge shows in the header', (await p.isVisible('#sync-badge')) && /Offline/.test(await p.textContent('#sync-badge')));
+    await p.context().setOffline(false); await p.waitForTimeout(200);
+    check('signal back: badge goes away', !(await p.isVisible('#sync-badge')));
+    await p.evaluate(() => { window.confirm = () => true; }); await p.click('#uc-out'); await p.waitForTimeout(600);
+    check('sign out wipes the team data saved on the device', (await p.evaluate(() => sessionStorage.getItem('__cleared'))) === '1');
+    check('no script errors (new rules)', !p.errs.length, p.errs);
+    await p.context().close();
+
+    // (c) a player on the new rules before any coach has visited: sees everything, moves nothing
+    p = await page(b, URL, { mock: true, init: seed, arg: { email: 'pat@x.com', deny: false } });
+    await signIn(p);
+    check('player sees team plays from the old fields while waiting for the coach', (await names(p)) === 'Alpha,Bravo');
+    check('player doesn’t try to move the data (not allowed to)', (await p.evaluate(() => 'teamPlays' in __fs['teams/b2a'] && !Object.keys(__fs).some(k => k.includes('/plays/')))));
+    check('no script errors (player)', !p.errs.length, p.errs);
+    await p.context().close();
+  }
+
   await b.close(); srv.close();
   console.log('\n' + (failed ? failed + ' check(s) FAILED' : 'All checks passed.'));
   process.exit(failed ? 1 : 0);
