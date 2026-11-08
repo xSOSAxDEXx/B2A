@@ -42,7 +42,7 @@ var B2A_RULES = [
     title: 'Offense: QB & snap', icon: 'target',
     items: [
       { t: 'Center must be on the line and snap between the legs to a player in the backfield. QB must line up off the line.' },
-      { t: '<b>QB cannot run</b> the ball across the line. He can hand off/pitch and then go out for a pass, or get a second handoff back.' },
+      { t: '<b>QB cannot run</b> with the snap. He can hand off/pitch and then go out for a pass — or <b>get the ball handed back</b> to him, and then he can run or pass (a QB run is still a run: not in a no-run zone).' },
       { t: '<b>7-second clock</b> from the snap to a pass or handoff. If it runs out, it’s a dead ball and a lost down. A handoff turns the clock off.' },
       { t: 'Everyone is eligible to catch a pass, including the center (after the snap) and the QB (after handing off).' },
       { t: '<b>Center can’t take a handoff</b> (no center sneak).' }
@@ -53,6 +53,7 @@ var B2A_RULES = [
     items: [
       { t: 'One forward pass per play, thrown from behind the line, caught beyond it.' },
       { t: 'Unlimited handoffs and backward pitches — but only behind the line. Any backward pass or handoff past the line is a penalty.' },
+      { t: '<b>Double pass:</b> the QB can throw a backward pass (lateral) to a player behind the line, who can then run or throw the play’s one forward pass. The lateral must go sideways or backward.' },
       { t: 'Shovel passes are fine if caught past the line.' },
       { t: '<b>No blocking or screening.</b> Teammates must stop running with the ball carrier once the ball crosses the line.' },
       { t: 'Ball carriers can spin but can’t jump, dive, stiff-arm, or cover their flags (flag guarding).' },

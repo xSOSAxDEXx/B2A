@@ -9,7 +9,7 @@
    Add plays in the Designer tab; team plays saved there live in Firebase with the rest of the team data. */
 var B2A_CATS = [
   ['quick', 'Quick game'], ['dropback', 'Dropback & zone beaters'], ['man', 'Man beaters'], ['center', 'Center plays'],
-  ['trick', 'Trick plays'], ['run', 'Runs'], ['midfield', 'Midfield no-run zone'], ['redzone', 'Red zone & PAT']
+  ['trick', 'Trick plays'], ['qbrun', 'QB runs & double passes'], ['run', 'Runs'], ['midfield', 'Midfield no-run zone'], ['redzone', 'Red zone & PAT']
 ];
 var B2A_PLAYS = [
   /* ================= QUICK GAME (ball out by ~1.5s — first answer to a blitzer) ================= */
@@ -298,6 +298,73 @@ var B2A_PLAYS = [
     events: [{ t: 0.45, type: 'handoff', from: 'QB', to: 'Y' }, { t: 1.35, type: 'pitch', from: 'Y', to: 'QB' }],
     reads: ['QB takes the pitch around the right edge'],
     notes: 'Jet motion, handoff to Y, Y pitches back to the QB — after getting it back the QB can legally run. Not legal in a no-run zone.'
+  },
+
+  /* ================= QB RUNS & DOUBLE PASSES (handoff back to the QB, or a backward pass first) ================= */
+  {
+    id: 'qb-giveback-keep', cat: 'qbrun', name: 'QB Give-Back Keep', formation: 'gun', tags: ['run', 'trick', 'perimeter'],
+    players: {
+      Y: { start: [10.5, -5.5], route: { pts: [[12.5, -5.8], [15, -5.6], [16.5, -5], [17.5, 6]], speed: 4.5, delay: 0 } },
+      QB: { route: { pts: [[13.5, -6.3], [15.5, -5.9], [18.5, -5.3], [21.5, -3.5], [22.5, 1], [22.5, 12]], delay: 0.7, speed: 7 } },
+      X: { route: { pts: [[2, 18]] } },
+      Z: { route: { pts: [[23, 8], [16, 14]] } },
+      C: { route: { pts: [[12.5, 8], [9, 10]], delay: 0.3 } }
+    },
+    events: [{ t: 0.7, type: 'handoff', from: 'QB', to: 'Y' }, { t: 1.6, type: 'handoff', from: 'Y', to: 'QB' }],
+    reads: ['QB keeps it around the right edge'],
+    notes: 'Y takes the handoff going right and hands it BACK to the QB trailing right behind him. Once he gets it back the QB can run. Both handoffs happen behind the line. A run play: not legal in a no-run zone or on a 1-pt try. Y keeps going upfield as a decoy (no blocking).'
+  },
+  {
+    id: 'qb-giveback-roll', cat: 'qbrun', name: 'QB Give-Back Rollout', formation: 'spread', tags: ['pass', 'trick', 'rollout'],
+    players: {
+      Y: { start: [10.5, -5.5], route: { pts: [[12.5, -5.8], [15, -5.6], [16.5, -5], [17.5, 6]], speed: 4.5, delay: 0 } },
+      QB: { route: { pts: [[13.5, -6.3], [15.5, -5.9], [18.5, -5.3], [20.5, -4]], delay: 0.7, speed: 7 } },
+      X: { route: { pts: [[2, 12], [10, 18]] } },
+      Z: { route: { pts: [[23, 8], [18, 13]] } },
+      C: { route: { pts: [[12.5, 3], [20, 4]], delay: 0.3 } }
+    },
+    events: [{ t: 0.7, type: 'handoff', from: 'QB', to: 'Y' }, { t: 1.6, type: 'handoff', from: 'Y', to: 'QB' }, { type: 'pass', from: 'QB', to: 'Z', brk: 0 }],
+    reads: ['Z post', 'C drag into the flat', 'QB keeps if the edge is empty'],
+    notes: 'Same look as Give-Back Keep. After getting it back the QB rolls right: Z post, C drag into the flat, or keep it if the edge is open (not in a no-run zone). After the first handoff every defender can blitz — decide fast.'
+  },
+  {
+    id: 'double-pass', cat: 'qbrun', name: 'Double Pass', formation: 'spread', tags: ['pass', 'trick', 'deep'],
+    players: {
+      QB: { route: { pts: [[12.5, -5.5]], delay: 1.2, speed: 2 } },
+      X: { route: { pts: [[4, -5.5], [4.5, -6]], speed: 6 } },
+      Y: { route: { pts: [[7, 6], [11, 18]] } },
+      Z: { route: { pts: [[23, 9], [16, 18]] } },
+      C: { route: { pts: [[12.5, 5], [10, 6]], delay: 0.3 } }
+    },
+    events: [{ t: 0.75, type: 'pitch', from: 'QB', to: 'X' }, { type: 'pass', from: 'X', to: 'C', brk: 1 }],
+    reads: ['C hook over the middle', 'Z post deep', 'Y seam'],
+    notes: 'The QB throws a backward pass (lateral) to X, who has stepped back behind the line. X then throws the one forward pass of the play. The lateral must go sideways or backward — X has to catch it level with or behind the QB. It’s a pass play, so it’s legal in a no-run zone.'
+  },
+  {
+    id: 'lateral-throwback', cat: 'qbrun', name: 'Lateral Throwback', formation: 'trips', tags: ['pass', 'trick'],
+    players: {
+      QB: { route: { pts: [[9, -2], [5, 4], [4, 14]], delay: 0.7, speed: 7 } },
+      Z: { route: { pts: [[19, -5.5], [19.5, -6]], speed: 6 } },
+      Y: { route: { pts: [[17, 6], [22, 9]] } },
+      X: { route: { pts: [[23.5, 12], [21, 16]] } },
+      C: { route: { pts: [[14, 5]], delay: 0.3 } }
+    },
+    events: [{ t: 0.6, type: 'pitch', from: 'QB', to: 'Z' }, { type: 'pass', from: 'Z', to: 'QB', brk: 1 }],
+    reads: ['QB wheel up the left side', 'Y out', 'X curl'],
+    notes: 'The QB laterals to Z behind the line, then leaks out up the left side — after the backward pass the QB is an eligible receiver. Best vs zone; vs man, the defender on Z follows him back.'
+  },
+  {
+    id: 'toss-sweep', cat: 'qbrun', name: 'Toss Sweep', formation: 'gun', tags: ['run', 'perimeter'],
+    players: {
+      QB: { route: { pts: [[12.5, -5.5]], delay: 0.3, speed: 2 } },
+      Y: { route: { pts: [[17.5, -6.2], [21, -5.5], [22.5, -1], [22.5, 14]], speed: 6.5 } },
+      X: { route: { pts: [[2, 18]] } },
+      Z: { route: { pts: [[23, 6], [15, 12]] } },
+      C: { route: { pts: [[12.5, 8], [9, 10]], delay: 0.3 } }
+    },
+    events: [{ t: 0.45, type: 'pitch', from: 'QB', to: 'Y' }],
+    reads: ['Y around the right edge'],
+    notes: 'The QB tosses a backward pass to Y swinging out to the right; Y runs it. A run play: not legal in a no-run zone or on a 1-pt try.'
   },
 
   /* ================= RUNS (illegal inside a no-run zone) ================= */

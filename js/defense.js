@@ -73,6 +73,23 @@
     var goalY = P.ytg != null ? P.ytg : null;
     var passEv = P.events.filter(function (e) { return e.type === 'pass'; })[0], sep = null;
 
+    /* who goes after a ball carrier. Blitzers (and a spy) chase him after a short reaction. Coverage players hold
+       their coverage while he is still behind the line — after a handoff or backward pass he can still throw —
+       and come up once he crosses the line, gets close to them, or caught a forward pass. */
+    function gotBallBy(r, t) {
+      var last = null;
+      P.events.forEach(function (e) { if (e.to === r && (e.catchT || e.t) <= t + 1e-6) last = e; });
+      return last;
+    }
+    function chases(d, r, t) {
+      var e = gotBallBy(r, t), since = e ? t - (e.catchT || e.t) : 9, cp = sim.pos(r, t);
+      if (e && e.type === 'pass') return true;                 // a receiver after the catch: everyone rallies
+      if (d.job === 'blitz' || d.job === 'spy') return since >= 0.25;
+      if (since < 0.4) return false;                           // reading the exchange
+      var canThrow = cp[1] < -0.3 && !(passEv && t >= passEv.t);   // behind the line, no forward pass thrown yet
+      return !canThrow || dist(d.pos, cp) < 3.5;
+    }
+
     for (var i = 0; i < steps; i++) {
       var t = sim.tStart + i * DT;
       var b = sim.ball(Math.min(t, sim.tEnd));
@@ -84,7 +101,7 @@
           return;
         }
         var target, speed;
-        if (carrier) { target = sim.pos(carrier, t); speed = d.job === 'blitz' ? 6 : 7; }
+        if (carrier && chases(d, carrier, t)) { target = sim.pos(carrier, t); speed = d.job === 'blitz' ? 6 : 7; }
         else if (d.job === 'blitz') {
           target = b.holder === 'QB' || !b.holder ? qb : b.pt; speed = d.speed || 5.6;
         } else if (d.job === 'man') {

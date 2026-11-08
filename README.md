@@ -5,7 +5,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 **Live:** https://xsosaxdexx.github.io/B2A/ — invite-only team logins (Firebase).
 
 ## Tabs
-- **Plays** — Offense/Defense switch. 30 offensive plays in 8 sections (quick game, dropback, man beaters, center plays, trick, runs, midfield no-run, red zone & PAT) and 9 defensive calls (Cover 0/1/Robber/2/3, 3-1, Diamond, Double Blitz, Cover 4).
+- **Plays** — Offense/Defense switch. 35 offensive plays in 9 sections (quick game, dropback, man beaters, center plays, trick, QB runs & double passes, runs, midfield no-run, red zone & PAT) and 9 defensive calls (Cover 0/1/Robber/2/3, 3-1, Diamond, Double Blitz, Cover 4).
   - **Against defense** runs a simulated coverage: QBs throw on the receiver's break, receivers run after the catch, defenders react and pull flags; the result (separation, gain, sack, incompletion, interception, TD) is shown.
   - **QB throws to** any receiver, or **Best read vs [defense]**. **QB after the snap**: drop back or roll out left/right.
   - **✎ Adjust routes & catch spot**: drag route dots and slide the 📍 pin along the target's route. View-only until **Edit copy** (opens it in the Designer); **Reset changes** undoes it.
