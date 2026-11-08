@@ -260,6 +260,38 @@ async function page(b, url, opts = {}) {
     await p.context().close();
   }
 
+  /* adjust mode: the 📍 pin is the CATCH spot — the ball line must end where the pin sits, even when dragged early */
+  {
+    const p = await page(b, URL);
+    await p.click('#v-adjust'); await p.waitForTimeout(200);
+    await p.$eval('#field', e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(200);
+    const geo = () => p.evaluate(() => {
+      const svg = document.querySelector('#field'), m = svg.getScreenCTM();
+      const toScr = (x, y) => { const q = svg.createSVGPoint(); q.x = x; q.y = y; const r = q.matrixTransform(m); return [r.x, r.y]; };
+      const body = svg.querySelector('.pin-body'), line = svg.querySelector('.pass-line');
+      if (!body || !line) return null;
+      const t = body.getAttribute('d').match(/M([\d.-]+),([\d.-]+)/);
+      return { pin: toScr(+t[1], +t[2]), ball: toScr(+line.getAttribute('x2'), +line.getAttribute('y2')), early: !!svg.querySelector('.pin-track.too-early') };
+    });
+    const g0 = await geo();
+    check('adjust mode shows the 📍 pin and the ball line', !!g0, g0);
+    const near = (g) => Math.hypot(g.pin[0] - g.ball[0], g.pin[1] - g.ball[1]) < 12;
+    check('pin sits on the catch spot before dragging', g0 && near(g0), g0);
+    const drag = async (from, dx, dy) => {   // small steps, like a finger
+      await p.mouse.move(from[0], from[1] - 10); await p.mouse.down();
+      for (let i = 1; i <= 15; i++) await p.mouse.move(from[0] + i * dx, from[1] - 10 + i * dy);
+      await p.mouse.up(); await p.waitForTimeout(300);
+      return geo();
+    };
+    const g1 = await drag(g0.pin, 2, -6);   // downfield along the slant
+    check('dragged downfield: the catch moves with the pin', g1 && near(g1) && Math.hypot(g1.ball[0] - g0.ball[0], g1.ball[1] - g0.ball[1]) > 20, [g0, g1]);
+    const g2 = await drag(g1.pin, -3, 12);  // way back toward the line, past where a throw can get there
+    check('dragged too early: pin stops where the ball can first reach him (pin = catch, not throw)', g2 && near(g2), g2);
+    check('the too-early start of the route is shown dimmed', g2 && g2.early, g2);
+    check('no script errors (adjust mode)', !p.errs.length, p.errs);
+    await p.context().close();
+  }
+
   await b.close(); srv.close();
   console.log('\n' + (failed ? failed + ' check(s) FAILED' : 'All checks passed.'));
   process.exit(failed ? 1 : 0);
