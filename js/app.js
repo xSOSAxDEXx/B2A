@@ -244,6 +244,22 @@
     throwTargets(p).forEach(function (r) { var s = D.scoreResult(D.simulate(def, E.buildSim(retarget(p, r))).result); if (!best || s > best.s) best = { r: r, s: s }; });
     return best && best.r;
   }
+  /* their QB's decision making (scouting, -2 … +2): a poor decision maker sometimes throws to the receiver our
+     defense has covered best; a good one more often finds the open man. Picked from the play + defense names,
+     so a matchup always plays out the same way. */
+  function chance(key) { var h = 2166136261; for (var i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 1000) / 1000; }
+  function qbRead(p, def, dec, key) {
+    if (!dec || !def || !canRetarget(p)) return { p: p };
+    var drawn = p.events[0].to, ranked = throwTargets(p).map(function (r) {
+      return { r: r, s: D.scoreResult(D.simulate(def, E.buildSim(retarget(p, r))).result) };
+    }).sort(function (a, b) { return b.s - a.s; });
+    if (ranked.length < 2) return { p: p };
+    var roll = chance(key), pick = drawn, why = '';
+    if (dec < 0 && roll < 0.35 * -dec) { pick = ranked[ranked.length - 1].r; why = 'misread it'; }
+    else if (dec > 0 && roll < 0.45 * dec) { pick = ranked[0].r; why = 'found the open man'; }
+    if (pick === drawn) return { p: p };
+    return { p: retarget(p, pick), note: 'Their QB ' + why + ': threw to ' + pick + ' instead of ' + drawn + '.' };
+  }
   function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return tunedDef(d && view.flip ? D.flipDefense(d) : d); }
 
   /* ---- "Their players": run the sim at a scouted opponent's speed (scout.js). Defaults to this week's opponent. ---- */
@@ -491,6 +507,9 @@
       var d = currentDef();
       var offId = view.vsDef[view.defId] || base.vs;
       var off = findOff(offId) || B2A_PLAYS[0], offRun = tunedOff(view.flip ? E.flipPlay(off) : off);
+      var oid = oppId(), dec = oid ? APP.scout.profile(APP.scout.find(oid)).dec : 0, read = qbRead(offRun, d, dec, off.id + '|' + d.id + '|' + oid);
+      offRun = read.p;
+      if (read.note) { $('#v-opp-note').insertAdjacentHTML('beforeend', ' <b class="opp-read">' + esc(read.note) + '</b>'); }
       $('#v-throw-wrap').classList.add('hidden'); $('#v-tweak').classList.add('hidden'); $('#v-adjust-hint').classList.add('hidden'); $('#field').classList.remove('adjusting');
       loadViewer(offRun, d, 'def', keep);
       $('#v-name').textContent = base.num + ' · ' + d.name;
@@ -614,6 +633,7 @@
     isRun: isRun, thumb: thumb, offSVG: offSVG, defSVG: defSVG, playName: playName, playNum: playNum, CAT_NAME: CAT_NAME,
     showTab: showTab, tabHooks: tabHooks, activeGame: activeGame, inPlan: inPlan, togglePlan: togglePlan,
     openPlay: function (id, side) { showTab('plays'); if ((side || 'off') !== view.side) { view.side = side || 'off'; $$('#side-switch button').forEach(function (x) { x.classList.toggle('on', x.dataset.side === view.side); }); fillCatSelect(); } select(id); },
+    qbRead: qbRead,
     refreshPlays: function () { select(view.side === 'off' ? view.id : view.defId, true); },   // keep: don't restart a running animation if the play didn't change
     bootPlays: boot
   };

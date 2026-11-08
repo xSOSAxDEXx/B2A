@@ -1,5 +1,5 @@
 /* Opponent scouting: the teams we play, their players, and how each compares to the league average
-   (speed for everyone, arm strength for QBs). Pick an opponent above the field in the Plays tab and the
+   (speed for everyone, awareness for defenders, arm strength for QBs). Pick an opponent above the field in the Plays tab and the
    simulation runs at their speed: a faster safety closes sooner, a strong-armed QB fits the ball in sooner.
    Stored per opponent in Firebase (teams/b2a/scout/{id}) — see cloud.js. */
 (function () {
@@ -7,6 +7,9 @@
   var A = window.APP, ST = A.ST, E = A.E, D = A.D, $ = A.$, esc = A.esc;
 
   var SPEED = [[-2, 'Much slower'], [-1, 'Slower'], [0, 'Average'], [1, 'Faster'], [2, 'Much faster']];
+  var AWARE = [[-2, 'Very low awareness'], [-1, 'Low awareness'], [0, 'Average awareness'], [1, 'High awareness'], [2, 'Elite awareness']];
+  var ESCAPE = [[-2, 'Very easy to sack'], [-1, 'Easy to sack'], [0, 'Average vs the blitz'], [1, 'Slippery'], [2, 'Very slippery']];
+  var DECIDE = [[-2, 'Very poor decisions'], [-1, 'Poor decisions'], [0, 'Average decisions'], [1, 'Good decisions'], [2, 'Elite decisions']];
   var ARM = [[-2, 'Much weaker arm'], [-1, 'Weaker arm'], [0, 'Average arm'], [1, 'Stronger arm'], [2, 'Much stronger arm']];
   var OFF = [['', 'Offense: —'], ['QB', 'Offense: QB'], ['C', 'Offense: Center'], ['WR', 'Offense: Receiver'], ['X', 'Offense: X'], ['Y', 'Offense: Y'], ['Z', 'Offense: Z']];
   var DEF = [['', 'Defense: —'], ['B', 'Defense: Blitz'], ['CB', 'Defense: Corner'], ['M', 'Defense: Middle'], ['S', 'Defense: Safety']];
@@ -25,7 +28,11 @@
   function speedOf(players, test) { return avg(players.filter(test).map(function (p) { return +p.speed || 0; })); }
   function profile(o) {
     var pl = (o && o.players) || [], def = {}, off = {};
-    Object.keys(DEF_GROUP).forEach(function (k) { def[k] = speedOf(pl, function (p) { return p.def === k; }); });
+    var aware = {};
+    Object.keys(DEF_GROUP).forEach(function (k) {
+      def[k] = speedOf(pl, function (p) { return p.def === k; });
+      aware[k] = avg(pl.filter(function (p) { return p.def === k; }).map(function (p) { return +p.aware || 0; }));
+    });
     off.QB = speedOf(pl, function (p) { return p.off === 'QB'; });
     off.C = speedOf(pl, function (p) { return p.off === 'C'; });
     var wr = speedOf(pl, function (p) { return /^(WR|X|Y|Z)$/.test(p.off); });
@@ -33,14 +40,14 @@
       var own = pl.filter(function (p) { return p.off === r; });
       off[r] = own.length ? speedOf(own, function () { return true; }) : wr;
     });
-    var arm = avg(pl.filter(function (p) { return p.off === 'QB'; }).map(function (p) { return +p.arm || 0; }));
-    return { def: def, off: off, arm: arm };
+    var qbs = pl.filter(function (p) { return p.off === 'QB'; }), qb = function (f) { return avg(qbs.map(function (p) { return +p[f] || 0; })); };
+    return { def: def, aware: aware, off: off, arm: qb('arm'), esc: qb('esc'), dec: qb('dec') };
   }
-  // their defense: each defender runs at the speed of their players at that position
+  // their defense: each defender runs at the speed — and reads the play with the awareness — of their players at that position
   function tuneDef(def, id) {
     var o = find(id); if (!def || !o || !(o.players || []).length) return def;
     var pr = profile(o), d = E.clone(def);
-    d.defenders.forEach(function (x) { x.spd = 1 + SPD_STEP * (pr.def[D.posOf(x)] || 0); });
+    d.defenders.forEach(function (x) { var k = D.posOf(x); x.spd = 1 + SPD_STEP * (pr.def[k] || 0); x.aw = pr.aware[k] || 0; });
     return d;
   }
   // their offense: receivers' route speed and the QB's arm
@@ -49,6 +56,7 @@
     var pr = profile(o), p = E.normalizePlay(play);
     E.ROLES.forEach(function (r) { p.players[r].route.speed *= 1 + SPD_STEP * (pr.off[r] || 0); });
     p.arm = 1 + ARM_STEP * pr.arm;
+    p.elusive = pr.esc;   // their QB's decision making is applied by the Plays viewer (it picks who he throws to)
     return p;
   }
 
@@ -57,9 +65,16 @@
   function summary(o, side) {   // "Safeties faster · QB much stronger arm"
     if (!o || !(o.players || []).length) return '';
     var pr = profile(o), bits = [];
-    if (side !== 'off') Object.keys(DEF_GROUP).forEach(function (k) { if (Math.abs(pr.def[k]) >= 0.5) bits.push(DEF_GROUP[k] + ' ' + word(SPEED, pr.def[k]).toLowerCase()); });
+    if (side !== 'off') Object.keys(DEF_GROUP).forEach(function (k) {   // "Safeties faster, elite awareness"
+      var b = [];
+      if (Math.abs(pr.def[k]) >= 0.5) b.push(word(SPEED, pr.def[k]).toLowerCase());
+      if (Math.abs(pr.aware[k]) >= 0.5) b.push(word(AWARE, pr.aware[k]).toLowerCase());
+      if (b.length) bits.push(DEF_GROUP[k] + ' ' + b.join(', '));
+    });
     if (side !== 'def') {
       if (Math.abs(pr.arm) >= 0.5) bits.push('QB ' + word(ARM, pr.arm).toLowerCase());
+      if (Math.abs(pr.esc) >= 0.5) bits.push('QB ' + word(ESCAPE, pr.esc).toLowerCase());
+      if (Math.abs(pr.dec) >= 0.5) bits.push('QB ' + word(DECIDE, pr.dec).toLowerCase());
       if (Math.abs(pr.off.QB) >= 0.5) bits.push('QB ' + word(SPEED, pr.off.QB).toLowerCase());
       var rec = avg(['X', 'Y', 'Z'].map(function (r) { return pr.off[r]; }));
       if (Math.abs(rec) >= 0.5) bits.push('receivers ' + word(SPEED, rec).toLowerCase());
@@ -106,7 +121,10 @@
       '<select data-f="off" aria-label="Offense position"' + dis + '>' + opts(OFF, p.off || '') + '</select>' +
       '<select data-f="def" aria-label="Defense position"' + dis + '>' + opts(DEF, p.def || '') + '</select>' +
       '<select data-f="speed" aria-label="Speed"' + dis + '>' + opts(SPEED, p.speed || 0, 'Speed: ') + '</select>' +
-      '<select data-f="arm" aria-label="Arm" class="op-arm' + (p.off === 'QB' ? '' : ' hidden') + '"' + dis + '>' + opts(ARM.map(function (a) { return [a[0], a[1].replace(/ arm$/, '')]; }), p.arm || 0, 'Arm: ') + '</select>' +
+      '<select data-f="aware" aria-label="Awareness" class="op-aware' + (p.def ? '' : ' hidden') + '"' + dis + '>' + opts(AWARE.map(function (a) { return [a[0], a[1].replace(/ awareness$/, '')]; }), p.aware || 0, 'Awareness: ') + '</select>' +
+      '<select data-f="arm" aria-label="Arm" class="op-qb' + (p.off === 'QB' ? '' : ' hidden') + '"' + dis + '>' + opts(ARM.map(function (a) { return [a[0], a[1].replace(/ arm$/, '')]; }), p.arm || 0, 'Arm: ') + '</select>' +
+      '<select data-f="esc" aria-label="Avoids sacks" class="op-qb' + (p.off === 'QB' ? '' : ' hidden') + '"' + dis + '>' + opts(ESCAPE.map(function (a) { return [a[0], a[0] ? a[1] : 'Average']; }), p.esc || 0, 'Vs blitz: ') + '</select>' +
+      '<select data-f="dec" aria-label="Decision making" class="op-qb' + (p.off === 'QB' ? '' : ' hidden') + '"' + dis + '>' + opts(DECIDE.map(function (a) { return [a[0], a[1].replace(/ decisions$/, '')]; }), p.dec || 0, 'Decisions: ') + '</select>' +
       '</div></div>';
   }
   function openForm(name) {
@@ -118,7 +136,7 @@
     f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Team</span><input id="of-name" maxlength="60" placeholder="Opponent name" value="' + esc(editing.name) + '"' + (ro ? ' disabled' : '') + '></label></div>' +
       '<label class="dd"><span>Notes</span><input id="of-notes" maxlength="300" placeholder="What stands out about them" value="' + esc(editing.notes || '') + '"' + (ro ? ' disabled' : '') + '></label>' +
       (ro ? '<p class="hint warn-text">' + (canEdit() ? 'Read-only for now: opponent rosters can’t be saved until the updated firestore.rules are published (then reload the page).' : 'Only the coach and editors can change opponent rosters.') + '</p>' : '') +
-      '<div class="tr-label">Players <span class="muted">— speed vs the rest of the league; arm for QBs</span></div>' +
+      '<div class="tr-label">Players <span class="muted">— compared with the rest of the league: speed; awareness on defense; arm, vs the blitz and decisions for QBs</span></div>' +
       '<div id="of-players" class="op-players">' + editing.players.map(function (p) { return playerRow(p, ro); }).join('') + '</div>' +
       (ro ? '' : '<button type="button" class="btn small" id="of-addp">＋ Add player</button>') +
       '<div class="series-actions">' + (ro ? '<button class="btn ghost" id="of-cancel">Close</button>'
@@ -127,13 +145,14 @@
     f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   function addPlayerRow() {
-    var wrap = $('#of-players'); wrap.insertAdjacentHTML('beforeend', playerRow({ id: ST.uid('o'), speed: 0, arm: 0 }, false));
+    var wrap = $('#of-players'); wrap.insertAdjacentHTML('beforeend', playerRow({ id: ST.uid('o'), speed: 0, arm: 0, aware: 0, esc: 0, dec: 0 }, false));
     var last = wrap.lastElementChild.querySelector('[data-f="name"]'); if (last) last.focus();
   }
   function readRows() {
     return Array.prototype.map.call(document.querySelectorAll('#of-players .op-prow'), function (row) {
       var v = function (f) { return row.querySelector('[data-f="' + f + '"]').value; };
-      var p = { id: row.dataset.id, name: v('name').trim(), number: v('number'), off: v('off'), def: v('def'), speed: +v('speed') || 0, arm: v('off') === 'QB' ? +v('arm') || 0 : 0 };
+      var p = { id: row.dataset.id, name: v('name').trim(), number: v('number'), off: v('off'), def: v('def'), speed: +v('speed') || 0, aware: v('def') ? +v('aware') || 0 : 0, arm: v('off') === 'QB' ? +v('arm') || 0 : 0 };
+      var qb = v('off') === 'QB'; p.esc = qb ? +v('esc') || 0 : 0; p.dec = qb ? +v('dec') || 0 : 0;
       return p;
     }).filter(function (p) { return p.name || p.number || p.off || p.def || p.speed; });
   }
@@ -160,9 +179,10 @@
     openForm('');
   });
   $('#op-list').addEventListener('click', function (e) { var c = e.target.closest('.op-card'); if (c) { retry(); openForm(c.dataset.name); } });
-  $('#op-form').addEventListener('change', function (e) {   // arm only matters for a QB
-    if (e.target.dataset.f !== 'off') return;
-    e.target.closest('.op-prow').querySelector('.op-arm').classList.toggle('hidden', e.target.value !== 'QB');
+  $('#op-form').addEventListener('change', function (e) {   // arm only matters for a QB, awareness for a defender
+    var f = e.target.dataset.f, row = e.target.closest('.op-prow');
+    if (f === 'off') Array.prototype.forEach.call(row.querySelectorAll('.op-qb'), function (s) { s.classList.toggle('hidden', e.target.value !== 'QB'); });
+    if (f === 'def') row.querySelector('.op-aware').classList.toggle('hidden', !e.target.value);
   });
   $('#op-form').addEventListener('click', function (e) {
     var t = e.target;

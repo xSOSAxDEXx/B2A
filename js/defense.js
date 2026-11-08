@@ -72,10 +72,17 @@
     var firstEx = sim.firstExchange == null ? Infinity : sim.firstExchange;
     var goalY = P.ytg != null ? P.ytg : null;
     var passEv = P.events.filter(function (e) { return e.type === 'pass'; })[0], sep = null;
+    // P.elusive: their QB's knack for avoiding sacks, -2 … +2 (scouting). Slippery: the blitzer has to get closer
+    // and stay on him a moment; easy to sack: goes down as soon as the blitzer is near.
+    var elus = P.elusive || 0, sackR = 0.8 - 0.3 * Math.min(0, elus), sackHold = Math.max(0, 0.35 * elus);
+    var closeIn = 1 - 0.08 * elus;   // a slippery QB slides away from the blitzer; a statue lets him close faster
 
     /* who goes after a ball carrier. Blitzers (and a spy) chase him after a short reaction. Coverage players hold
        their coverage while he is still behind the line — after a handoff or backward pass he can still throw —
        and come up once he crosses the line, gets close to them, or caught a forward pass. */
+    /* aw: awareness vs the league, -2 … +2 (scouting). Aware defenders react to cuts and throws sooner,
+       read where a receiver is heading, and start toward the target as the QB's eyes give it away. */
+    function aw(d) { return d.aw || 0; }
     function gotBallBy(r, t) {
       var last = null;
       P.events.forEach(function (e) { if (e.to === r && (e.catchT || e.t) <= t + 1e-6) last = e; });
@@ -84,8 +91,8 @@
     function chases(d, r, t) {
       var e = gotBallBy(r, t), since = e ? t - (e.catchT || e.t) : 9, cp = sim.pos(r, t);
       if (e && e.type === 'pass') return true;                 // a receiver after the catch: everyone rallies
-      if (d.job === 'blitz' || d.job === 'spy') return since >= 0.25;
-      if (since < 0.4) return false;                           // reading the exchange
+      if (d.job === 'blitz' || d.job === 'spy') return since >= 0.25 - 0.05 * aw(d);
+      if (since < 0.4 - 0.1 * aw(d)) return false;              // reading the exchange (sooner when more aware)
       var canThrow = cp[1] < -0.3 && !(passEv && t >= passEv.t);   // behind the line, no forward pass thrown yet
       return !canThrow || dist(d.pos, cp) < 3.5;
     }
@@ -103,15 +110,16 @@
         var target, speed;
         if (carrier && chases(d, carrier, t)) { target = sim.pos(carrier, t); speed = d.job === 'blitz' ? 6 : 7; }
         else if (d.job === 'blitz') {
-          target = b.holder === 'QB' || !b.holder ? qb : b.pt; speed = d.speed || 5.6;
+          target = b.holder === 'QB' || !b.holder ? qb : b.pt; speed = (d.speed || 5.6) * (b.holder === 'QB' ? closeIn : 1);
         } else if (d.job === 'man') {
-          var rp = sim.pos(d.on, Math.max(0, t - 0.4)), inside = rp[0] < ballX ? 0.6 : -0.6;   // reacts ~0.4s after the receiver
+          var lag = 0.4 - 0.12 * aw(d);   // reacts ~0.4s after the receiver's cut (0.16s if elite, 0.64s if very low)
+          var rp = sim.pos(d.on, Math.max(0, t - lag)), inside = rp[0] < ballX ? 0.6 : -0.6;
           target = [rp[0] + inside, rp[1] + (d.trail != null ? d.trail : 1.3)]; speed = 7;
         } else if (d.job === 'zone') {
-          var best = null, bd = d.r || 6;
+          var best = null, bd = (d.r || 6) + 0.5 * aw(d);
           ['X', 'Y', 'Z', 'C', 'QB'].forEach(function (r) {
             if (r === 'QB' && t < gotBackT && !P.events.some(function (e) { return e.from === 'QB' && e.t < t; })) return;
-            var p = sim.pos(r, t); if (p[1] < -0.5) return;
+            var p = sim.pos(r, Math.max(0, t + 0.15 * aw(d))); if (p[1] < -0.5) return;   // aware: where he's heading, not where he is
             var dd = dist(p, d.drop); if (dd < bd) { bd = dd; best = p; }
           });
           if (best) {
@@ -126,9 +134,14 @@
         // ball in the air: defenders read it (~0.3s) then break on the catch point if it's in range
         if (!carrier && b.air === 'pass' && d.job !== 'blitz') {
           var ev = b.ev, tin = t - ev.t, cp = ev.catchPt, dd2 = dist(d.pos, cp);
-          var mine = (d.job === 'man' && d.on === ev.to) || dd2 < (d.r || 5) + 1.5;
-          var react = d.job === 'zone' && d.drop[1] >= 10 ? 0.65 : 0.5;   // deep defenders read longer before driving
-          if (tin > react) { if (mine) { target = cp; speed = d.job === 'zone' && d.drop[1] >= 10 ? 5.4 : 5.8; } else if (tin > 0.7) { target = cp; speed = 5; } }
+          var mine = (d.job === 'man' && d.on === ev.to) || dd2 < (d.r || 5) + 1.5 + 0.5 * aw(d);
+          var react = (d.job === 'zone' && d.drop[1] >= 10 ? 0.65 : 0.5) - 0.1 * aw(d);   // deep defenders read longer before driving
+          if (tin > react) { if (mine) { target = cp; speed = d.job === 'zone' && d.drop[1] >= 10 ? 5.4 : 5.8; } else if (tin > 0.7 - 0.1 * aw(d)) { target = cp; speed = 5; } }
+        }
+        // reading the QB's eyes: an aware defender near the target starts toward it just before the release
+        if (!carrier && passEv && aw(d) > 0 && d.job !== 'blitz' && b.holder === passEv.from && t < passEv.t && t >= passEv.t - 0.15 * aw(d)) {
+          var near = (d.job === 'man' && d.on === passEv.to) || dist(d.pos, passEv.catchPt) < (d.r || 5) + 1.5;
+          if (near) target = lerp(target, passEv.catchPt, 0.5);
         }
         var np = clampX(moveTo(d.pos, target, speed * (d.spd || 1) * DT));   // spd: this player's speed vs the league (scouting)
         if (passEv && b.air === 'pass' && b.ev === passEv && d.nearT == null && dist(np, passEv.catchPt) < 1.0) d.nearT = t;
@@ -166,7 +179,10 @@
           }
         } else if (b.holder === 'QB' && t < firstEx) {
           for (var j = 0; j < defs.length; j++) {
-            if (defs[j].job === 'blitz' && dist(defs[j].pos, qb) < 0.8) { result = { kind: 'sack', t: t, pt: qb, gain: qb[1], by: defs[j].id }; break; }
+            if (defs[j].job !== 'blitz') continue;
+            if (dist(defs[j].pos, qb) >= sackR) { defs[j].touch = null; continue; }
+            if (defs[j].touch == null) defs[j].touch = t;
+            if (t - defs[j].touch >= sackHold - 1e-9) { result = { kind: 'sack', t: t, pt: qb, gain: qb[1], by: defs[j].id }; break; }
           }
         }
       }
