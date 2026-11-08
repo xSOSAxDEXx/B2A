@@ -9,7 +9,8 @@
   const DEL = { __delete: true };
   function apply(base, d){ const out = Object.assign({}, base); Object.keys(d).forEach(k => { if (d[k] && d[k].__delete) delete out[k]; else out[k] = JSON.parse(JSON.stringify(d[k])); }); return out; }
   // window.__denyNew = true acts like the old rules: plays/ and ratings/ are off limits
-  function denied(path){ return window.__denyNew && /\/(plays|ratings)(\/|$)/.test(path); }
+  // window.__denyScout = true acts like the rules before opponent rosters: scout/ is off limits
+  function denied(path){ return (window.__denyNew && /\/(plays|ratings)(\/|$)/.test(path)) || ((window.__denyNew || window.__denyScout) && /\/scout(\/|$)/.test(path)); }
   const DENY = { code: 'permission-denied', message: 'Missing or insufficient permissions.' };
   // like real Firestore: a list directly inside a list can't be stored
   function nested(v, inList){ if (Array.isArray(v)) return inList || v.some(x => nested(x, true)); if (v && typeof v === 'object') return Object.keys(v).some(k => nested(v[k], false)); return false; }

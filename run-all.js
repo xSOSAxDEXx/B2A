@@ -260,6 +260,70 @@ async function page(b, url, opts = {}) {
     await p.context().close();
   }
 
+  /* 9. Opponent scouting: roster + ratings, used by the simulation */
+  {
+    const p = await page(b, URL);
+    await p.click('.tab[data-tab="roster"]');
+    await p.click('#op-add'); await p.fill('#of-name', 'Sharks'); await p.fill('#of-notes', 'Fast secondary');
+    const row = (i) => `#of-players .op-prow >> nth=${i}`;
+    await p.fill(row(0) + ' >> [data-f="name"]', 'Gunner'); await p.selectOption(row(0) + ' >> [data-f="off"]', 'QB');
+    check('arm rating only shows for a QB', await p.isVisible(row(0) + ' >> [data-f="arm"]'));
+    await p.selectOption(row(0) + ' >> [data-f="arm"]', '2');
+    await p.click('#of-addp'); await p.fill(row(1) + ' >> [data-f="name"]', 'Flash'); await p.selectOption(row(1) + ' >> [data-f="def"]', 'S'); await p.selectOption(row(1) + ' >> [data-f="speed"]', '2');
+    await p.click('#of-addp'); await p.fill(row(2) + ' >> [data-f="name"]', 'Slow Joe'); await p.selectOption(row(2) + ' >> [data-f="def"]', 'CB'); await p.selectOption(row(2) + ' >> [data-f="speed"]', '-2');
+    await p.click('#of-save'); await p.waitForTimeout(200);
+    const o = await p.evaluate(() => APP.ST.S.data.scout[0]);
+    check('opponent saved with 3 rated players', o && o.name === 'Sharks' && o.players.length === 3 && o.players[0].arm === 2 && o.players[1].speed === 2, o);
+    check('opponents list shows the summary', /Safeties much faster/.test(await p.textContent('#op-list')) && /QB much stronger arm/.test(await p.textContent('#op-list')));
+    check('their name joins the opponent list for Game Day', await p.evaluate(() => APP.ST.S.data.opponents.includes('Sharks')));
+    // the simulation: their safety runs faster, their corner slower, their QB's passes arrive sooner
+    const sim = await p.evaluate(() => {
+      const A = APP, S = A.scout, o = A.ST.S.data.scout[0], def = A.findDef('cover2'), off = A.findOff('smash');
+      const t = S.tuneDef(def, o.id), sp = (d, pos) => d.defenders.filter(x => A.D.posOf(x) === pos).map(x => x.spd);
+      const q = A.findOff('slant-flat'), f0 = A.E.buildSim(q).P.events[0].flight, f1 = A.E.buildSim(S.tuneOff(q, o.id)).P.events[0].flight;
+      return { S: sp(t, 'S'), CB: sp(t, 'CB'), f0, f1 };
+    });
+    check('their safeties run faster, corners slower in the sim', sim.S.every(v => v > 1.1) && sim.CB.every(v => v < 0.9), sim);
+    check('a strong-armed QB gets the ball there sooner', sim.f1 < sim.f0, sim);
+    // Game Day links to it, and the Plays viewer defaults to this week's opponent
+    await p.click('.tab[data-tab="gameday"]'); await p.click('#gd-new-game'); await p.fill('#gd-opp-in', 'sharks'); await p.click('#gd-create'); await p.waitForTimeout(200);
+    check('Game Day shows their roster summary (name matched ignoring case)', /Their roster: 3 players/.test(await p.textContent('#gd-scout-line')));
+    await p.click('.tab[data-tab="plays"]'); await p.selectOption('#v-vs', 'cover2'); await p.waitForTimeout(200);
+    check('Plays: "Their players" defaults to this week’s opponent', (await p.isVisible('#v-opp')) && (await p.inputValue('#v-opp')) !== '' && /Sharks/.test(await p.textContent('#v-opp-note')));
+    await p.selectOption('#v-opp', ''); await p.waitForTimeout(150);
+    check('…and can be switched back to league average', (await p.isHidden('#v-opp-note')));
+    await p.click('#side-switch button[data-side="def"]'); await p.waitForTimeout(200); await p.selectOption('#v-opp', { label: 'Sharks' }); await p.waitForTimeout(150);
+    check('Defense side: their offense runs with their QB’s arm', /QB much stronger arm/.test(await p.textContent('#v-opp-note')));
+    await p.click('.tab[data-tab="roster"]'); await p.click('.op-card[data-name="Sharks"]'); await p.fill('#of-name', 'Sharks FC'); await p.click('#of-save'); await p.waitForTimeout(150);
+    check('renaming the team updates its games too', await p.evaluate(() => APP.ST.S.data.games.every(g => g.opp === 'Sharks FC')));
+    check('no script errors (opponents)', !p.errs.length, p.errs);
+    await p.context().close();
+  }
+  /* 9b. Opponent rosters in Firebase: saved as their own documents; before the rules allow it, nothing breaks */
+  for (const deny of [false, true]) {
+    const init = (a) => {
+      window.__mockUser = { uid: 'u1', email: 'coach@x.com', displayName: 'Coach', emailVerified: true, providerData: [{ providerId: 'google.com' }], reload: () => Promise.resolve(), getIdToken: () => Promise.resolve() };
+      window.__denyScout = a.deny;
+      window.__fs = { 'teams/b2a': { ownerUid: 'u1', opponents: ['Jets'], activeGame: null }, 'teams/b2a/members/coach@x.com': { role: 'coach', name: 'Coach' },
+        'teams/b2a/scout/o1': { name: 'Jets', notes: '', players: [{ id: 'a', name: 'Rocket', def: 'B', speed: 2 }] } };
+    };
+    const p = await page(b, URL, { mock: true, init, arg: { deny } });
+    await p.fill('#g-email', 'coach@x.com'); await p.fill('#g-pass', 'secret1'); await p.press('#g-pass', 'Enter'); await p.waitForTimeout(900);
+    await p.click('.tab[data-tab="roster"]'); await p.waitForTimeout(200);
+    if (!deny) {
+      check('cloud: opponent rosters load from scout/', /Blitzer much faster/.test(await p.textContent('#op-list')));
+      await p.click('.op-card[data-name="Jets"]'); await p.selectOption('#of-players .op-prow >> nth=0 >> [data-f="speed"]', '1'); await p.click('#of-save'); await p.waitForTimeout(300);
+      check('cloud: an edit saves to that opponent’s document', await p.evaluate(() => __fs['teams/b2a/scout/o1'].players[0].speed === 1 && !('id' in __fs['teams/b2a/scout/o1'])));
+    } else {
+      check('rules not published: coach is told to publish them', /publish the updated/.test(await p.textContent('#op-warn')));
+      check('…and the rest of the team data still loads', !(await p.evaluate(() => document.body.classList.contains('gated'))) && (await p.evaluate(() => APP.ST.S.data.opponents.includes('Jets'))));
+      await p.click('.tab[data-tab="gameday"]'); await p.click('#gd-new-game'); await p.fill('#gd-opp-in', 'Owls'); await p.click('#gd-create'); await p.waitForTimeout(300);
+      check('…other saves still go through', await p.evaluate(() => Object.keys(__fs).some(k => k.startsWith('teams/b2a/games/') && __fs[k].opp === 'Owls')));
+    }
+    check('no script errors (cloud opponents' + (deny ? ', old rules)' : ')'), !p.errs.length, p.errs);
+    await p.context().close();
+  }
+
   /* adjust mode: the 📍 pin is the CATCH spot — the ball line must end where the pin sits, even when dragged early */
   {
     const p = await page(b, URL);

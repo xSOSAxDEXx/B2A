@@ -74,6 +74,19 @@ const PLAY = { name: 'Alpha', created: RAW.created, data: JSON.stringify(RAW) };
   await t('player can’t rate', pat.doc('teams/b2a/ratings/x').set({ v: 1 }), false);
   await t('editor removes a rating', ed.doc('teams/b2a/ratings/stick').delete(), true);
 
+  console.log('-- opponent rosters (scout)');
+  const SCOUT = { name: 'Sharks', notes: 'fast', players: [{ id: 'a', name: 'Gunner', number: '', off: 'QB', def: '', speed: 0, arm: 2 }] };
+  await t('editor saves an opponent roster', ed.doc('teams/b2a/scout/o1').set(SCOUT), true);
+  await t('coach updates it', coach.doc('teams/b2a/scout/o1').set(Object.assign({}, SCOUT, { notes: 'very fast' })), true);
+  await t('player reads opponent rosters', pat.collection('teams/b2a/scout').get(), true);
+  await t('outsider can’t read them', out.collection('teams/b2a/scout').get(), false);
+  await t('player can’t edit an opponent roster', pat.doc('teams/b2a/scout/o1').set(SCOUT), false);
+  await t('opponent without a name is rejected', ed.doc('teams/b2a/scout/o2').set(Object.assign({}, SCOUT, { name: '' })), false);
+  await t('opponent with extra fields is rejected', ed.doc('teams/b2a/scout/o2').set(Object.assign({}, SCOUT, { id: 'o2' })), false);
+  await t('more than 30 players is rejected', ed.doc('teams/b2a/scout/o2').set(Object.assign({}, SCOUT, { players: Array.from({ length: 31 }, (_, i) => ({ id: 'p' + i })) })), false);
+  await t('player can’t delete an opponent roster', pat.doc('teams/b2a/scout/o1').delete(), false);
+  await t('editor deletes an opponent roster', ed.doc('teams/b2a/scout/o1').delete(), true);
+
   console.log('-- roster');
   await t('editor adds a player', ed.doc('teams/b2a/roster/p3').set(Object.assign({}, ROSTER, { id: 'p3', name: 'Lee' })), true);
   await t('blank name is rejected', ed.doc('teams/b2a/roster/p4').set(Object.assign({}, ROSTER, { id: 'p4', name: '' })), false);
