@@ -252,11 +252,16 @@
     unsubs.push(teamRef.onSnapshot(function (doc) { parts.meta = doc.data() || {}; rebuild(); }, snapErr));
     coll('roster'); coll('games'); coll('log');
     // opponent rosters: if the rules don't allow them yet, leave them out instead of locking anyone out
-    coll('scout', function (e) {
-      if (e.code !== 'permission-denied') return snapErr(e);
-      layout.scout = false; rebuild();
-      root.APP && APP.onScoutReady && APP.onScoutReady();
-    });
+    function watchScout() {
+      coll('scout', function (e) {
+        if (e.code !== 'permission-denied') return snapErr(e);
+        layout.scout = false; rebuild();
+        root.APP && APP.onScoutReady && APP.onScoutReady();
+      });
+    }
+    watchScout();
+    // the rules may have been published since this page opened: ask again (the Roster tab calls this)
+    C.retryScout = function () { if (layout.scout === false) { layout.scout = null; watchScout(); } };
     unsubs.push(teamRef.collection('members').onSnapshot(function (snap) {
       C.members = snap.docs.map(function (d) { return Object.assign({ email: d.id }, d.data()); });
       var me = C.members.filter(function (m) { return m.email === C.user.email.toLowerCase(); })[0];

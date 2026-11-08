@@ -76,12 +76,16 @@
     list().map(function (o) { return o.name; }).concat(ST.S.data.opponents || []).sort(function (a, b) { return a.localeCompare(b); }).forEach(add);
     return out;
   }
-  function renderList() {
-    var g = A.activeGame(), names = allNames();
-    var CL = window.B2A_CLOUD, ready = storable();
-    $('#op-warn').innerHTML = ready ? '' : (CL && CL.scoutReady() === false
+  function renderWarn() {
+    var CL = window.B2A_CLOUD;
+    $('#op-warn').innerHTML = storable() ? '' : (CL && CL.scoutReady() === false
       ? '<p class="hint warn-text">' + (CL.role === 'coach' ? 'To save opponent rosters, publish the updated <b>firestore.rules</b> in the Firebase console (Firestore → Rules).' : 'Opponent rosters can’t be saved until the coach publishes the updated rules.') + '</p>'
       : '<p class="hint">Checking…</p>');
+  }
+  function renderList() {
+    var g = A.activeGame(), names = allNames();
+    var ready = storable();
+    renderWarn();
     $('#op-list').innerHTML = names.length ? names.map(function (n) {
       var o = forName(n), cnt = o ? (o.players || []).length : 0;
       return '<button class="ro-card op-card" data-name="' + esc(n) + '"><span class="ro-num op-ic">' + ICON('users') + '</span><div class="ro-body"><b>' + esc(n) +
@@ -109,9 +113,11 @@
     var o = forName(name), ro = !canEdit() || !storable();
     editing = o ? E.clone(o) : { id: null, name: name || '', notes: '', players: [] };
     editing.players = editing.players || [];
+    editing.ro = ro;
     var f = $('#op-form'); f.classList.remove('hidden');
     f.innerHTML = '<div class="dd-row"><label class="dd grow"><span>Team</span><input id="of-name" maxlength="60" placeholder="Opponent name" value="' + esc(editing.name) + '"' + (ro ? ' disabled' : '') + '></label></div>' +
       '<label class="dd"><span>Notes</span><input id="of-notes" maxlength="300" placeholder="What stands out about them" value="' + esc(editing.notes || '') + '"' + (ro ? ' disabled' : '') + '></label>' +
+      (ro ? '<p class="hint warn-text">' + (canEdit() ? 'Read-only for now: opponent rosters can’t be saved until the updated firestore.rules are published (then reload the page).' : 'Only the coach and editors can change opponent rosters.') + '</p>' : '') +
       '<div class="tr-label">Players <span class="muted">— speed vs the rest of the league; arm for QBs</span></div>' +
       '<div id="of-players" class="op-players">' + editing.players.map(function (p) { return playerRow(p, ro); }).join('') + '</div>' +
       (ro ? '' : '<button type="button" class="btn small" id="of-addp">＋ Add player</button>') +
@@ -136,6 +142,7 @@
     var name = $('#of-name').value.trim(); if (!name) { A.toast('Add the team’s name.'); return; }
     var clash = forName(name); if (clash && clash.id !== editing.id) { A.toast(name + ' already has a roster.'); return; }
     var oldName = editing.name, d = ST.S.data;
+    delete editing.ro;
     editing.name = name; editing.notes = $('#of-notes').value.trim(); editing.players = readRows();
     if (editing.id) d.scout = list().map(function (o) { return o.id === editing.id ? editing : o; });
     else { editing.id = ST.uid('o'); list().push(editing); }
@@ -148,10 +155,11 @@
     A.toast(name + ' saved for the whole team.'); close(); ST.save();
   }
   $('#op-add').addEventListener('click', function () {
+    retry();
     if (!storable()) { A.toast('Opponent rosters can’t be saved yet — see the note in this card.'); return; }
     openForm('');
   });
-  $('#op-list').addEventListener('click', function (e) { var c = e.target.closest('.op-card'); if (c) openForm(c.dataset.name); });
+  $('#op-list').addEventListener('click', function (e) { var c = e.target.closest('.op-card'); if (c) { retry(); openForm(c.dataset.name); } });
   $('#op-form').addEventListener('change', function (e) {   // arm only matters for a QB
     if (e.target.dataset.f !== 'off') return;
     e.target.closest('.op-prow').querySelector('.op-arm').classList.toggle('hidden', e.target.value !== 'QB');
@@ -169,11 +177,16 @@
     }
   });
 
-  function render() { if (!editing) renderList(); }
+  function retry() { var CL = window.B2A_CLOUD; if (CL && CL.enabled && CL.retryScout) CL.retryScout(); }
+  function render() {
+    renderWarn();
+    if (editing && editing.ro && storable() && canEdit()) { openForm(editing.name); return; }   // rules just came through: make it editable
+    if (!editing) renderList();
+  }
   var prevTab = A.tabHooks.roster;
-  A.tabHooks.roster = function () { if (prevTab) prevTab(); render(); };
+  A.tabHooks.roster = function () { if (prevTab) prevTab(); retry(); render(); };
   ST.on(function () { if ($('#tab-roster').classList.contains('active')) render(); });
-  A.onScoutReady = function () { if ($('#tab-roster').classList.contains('active')) render(); };
+  A.onScoutReady = function () { if ($('#tab-roster').classList.contains('active')) { if (editing && editing.ro) openForm(editing.name); else render(); } };
 
   /* Game Day: "Their roster" line under the matchup title */
   A.scoutLineHTML = function (opp) {
