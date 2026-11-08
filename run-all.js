@@ -269,20 +269,39 @@ async function page(b, url, opts = {}) {
     await p.fill(row(0) + ' >> [data-f="name"]', 'Gunner'); await p.selectOption(row(0) + ' >> [data-f="off"]', 'QB');
     check('arm rating only shows for a QB', await p.isVisible(row(0) + ' >> [data-f="arm"]'));
     await p.selectOption(row(0) + ' >> [data-f="arm"]', '2');
+    check('QB rows also rate vs the blitz and decisions', await p.isVisible(row(0) + ' >> [data-f="esc"]') && await p.isVisible(row(0) + ' >> [data-f="dec"]'));
+    await p.selectOption(row(0) + ' >> [data-f="dec"]', '-2');
     await p.click('#of-addp'); await p.fill(row(1) + ' >> [data-f="name"]', 'Flash'); await p.selectOption(row(1) + ' >> [data-f="def"]', 'S'); await p.selectOption(row(1) + ' >> [data-f="speed"]', '2');
+    check('awareness shows once a defense position is picked', await p.isVisible(row(1) + ' >> [data-f="aware"]') && !(await p.isVisible(row(0) + ' >> [data-f="aware"]')));
+    await p.selectOption(row(1) + ' >> [data-f="aware"]', '2');
     await p.click('#of-addp'); await p.fill(row(2) + ' >> [data-f="name"]', 'Slow Joe'); await p.selectOption(row(2) + ' >> [data-f="def"]', 'CB'); await p.selectOption(row(2) + ' >> [data-f="speed"]', '-2');
     await p.click('#of-save'); await p.waitForTimeout(200);
     const o = await p.evaluate(() => APP.ST.S.data.scout[0]);
     check('opponent saved with 3 rated players', o && o.name === 'Sharks' && o.players.length === 3 && o.players[0].arm === 2 && o.players[1].speed === 2, o);
-    check('opponents list shows the summary', /Safeties much faster/.test(await p.textContent('#op-list')) && /QB much stronger arm/.test(await p.textContent('#op-list')));
+    check('opponents list shows the summary', /Safeties much faster, elite awareness/.test(await p.textContent('#op-list')) && /QB much stronger arm · QB very poor decisions/.test(await p.textContent('#op-list')));
     check('their name joins the opponent list for Game Day', await p.evaluate(() => APP.ST.S.data.opponents.includes('Sharks')));
     // the simulation: their safety runs faster, their corner slower, their QB's passes arrive sooner
     const sim = await p.evaluate(() => {
       const A = APP, S = A.scout, o = A.ST.S.data.scout[0], def = A.findDef('cover2'), off = A.findOff('smash');
       const t = S.tuneDef(def, o.id), sp = (d, pos) => d.defenders.filter(x => A.D.posOf(x) === pos).map(x => x.spd);
       const q = A.findOff('slant-flat'), f0 = A.E.buildSim(q).P.events[0].flight, f1 = A.E.buildSim(S.tuneOff(q, o.id)).P.events[0].flight;
-      return { S: sp(t, 'S'), CB: sp(t, 'CB'), f0, f1 };
+      // a fully elite-awareness defense vs a very-low one, across the whole playbook
+      const mix = (aw) => { let ints = 0, n = 0; A.offPlays().forEach(pl => A.defPlays().forEach(d => { const dd = A.E.clone(d); dd.defenders.forEach(x => x.aw = aw); if (A.D.simulate(dd, A.E.buildSim(pl)).result.kind === 'int') ints++; n++; })); return ints / n; };
+      return { S: sp(t, 'S'), CB: sp(t, 'CB'), f0, f1, awS: t.defenders.filter(x => A.D.posOf(x) === 'S').map(x => x.aw), intHi: mix(2), intLo: mix(-2) };
     });
+    const qb = await p.evaluate(() => {
+      const A = APP, E = A.E, D = A.D, d = A.findDef('cover2'), base = A.findOff('center-throwback');
+      const sackT = (el) => { const q = E.normalizePlay(base); q.elusive = el; const r = D.simulate(d, E.buildSim(q)).result; return r.kind === 'sack' ? r.t : 99; };
+      let mis = 0, good = 0;
+      A.offPlays().forEach(pl => A.defPlays().forEach(dd => { if (A.qbRead(E.normalizePlay(pl), dd, -2, pl.id + dd.id).note) mis++; if (A.qbRead(E.normalizePlay(pl), dd, 2, pl.id + dd.id).note) good++; }));
+      const again = A.qbRead(E.normalizePlay(A.findOff('smash')), d, -2, 'k').note === A.qbRead(E.normalizePlay(A.findOff('smash')), d, -2, 'k').note;
+      return { statue: sackT(-2), avg: sackT(0), slippery: sackT(2), mis, good, again };
+    });
+    check('an easy-to-sack QB goes down sooner; a very slippery one escapes', qb.statue < qb.avg && qb.slippery === 99, qb);
+    check('a poor decision maker throws to the wrong man on some plays, and the same each replay', qb.mis > 20 && qb.again, qb);
+    check('a good decision maker finds a better target on some plays', qb.good > 20, qb);
+    check('their safety’s awareness reaches the sim', sim.awS.length && sim.awS.every(v => v === 2), sim.awS);
+    check('aware defenders pick off more passes than unaware ones', sim.intHi > sim.intLo * 2, [sim.intHi, sim.intLo]);
     check('their safeties run faster, corners slower in the sim', sim.S.every(v => v > 1.1) && sim.CB.every(v => v < 0.9), sim);
     check('a strong-armed QB gets the ball there sooner', sim.f1 < sim.f0, sim);
     // Game Day links to it, and the Plays viewer defaults to this week's opponent
