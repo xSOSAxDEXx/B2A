@@ -318,6 +318,36 @@ async function page(b, url, opts = {}) {
     check('no script errors (opponents)', !p.errs.length, p.errs);
     await p.context().close();
   }
+  /* 9c. Our players' ratings: graded from strengths/weaknesses or set by hand, used for whoever is assigned */
+  {
+    const p = await page(b, URL);
+    await p.click('.tab[data-tab="roster"]'); await p.click('#ro-add'); await p.fill('#rf-name', 'Wes');
+    await p.selectOption('#rf-off', 'QB');
+    await p.click('.trait-picks[data-name="strengths"] [data-k="arm"]'); await p.click('.trait-picks[data-name="weaknesses"] [data-k="decision"]');
+    check('roster form: Auto grades follow strengths/weaknesses', /Auto · stronger/.test(await p.textContent('#rf-ratings [data-r="arm"]')) && /Auto · poor/.test(await p.textContent('#rf-ratings [data-r="dec"]')));
+    await p.selectOption('#rf-ratings [data-r="speed"]', '2'); await p.click('#rf-save'); await p.waitForTimeout(150);
+    await p.click('#ro-add'); await p.fill('#rf-name', 'Slow Sam'); await p.selectOption('#rf-def', 'S');
+    check('QB-only ratings hidden for a non-QB', !(await p.isVisible('#rf-ratings [data-r="arm"]')));
+    await p.selectOption('#rf-ratings [data-r="speed"]', '-2'); await p.selectOption('#rf-ratings [data-r="aware"]', '-2'); await p.click('#rf-save'); await p.waitForTimeout(150);
+    const saved = await p.evaluate(() => APP.ST.S.data.roster.map(x => [x.name, x.ratings, APP.ourRating(x, 'arm'), APP.ourRating(x, 'dec')]));
+    check('only hand-set ratings are stored; the rest stay Auto', JSON.stringify(saved[0][1]) === '{"speed":2}' && saved[0][2] === 1 && saved[0][3] === -1 && saved[1][1].aware === -2, saved);
+    // a game with Smash + Cover 3 in the plan, Wes at QB and Slow Sam as a deep defender
+    await p.evaluate(() => { const A = APP, g = A.ST.newGame('Jets'); g.plan.off.push('smash'); g.plan.def.push('cover3');
+      const [wes, sam] = A.ST.S.data.roster; g.assign.off.smash = { QB: wes.id }; const deep = A.findDef('cover3').defenders.find(x => A.D.posOf(x) === 'S');
+      g.assign.def.cover3 = {}; g.assign.def.cover3[deep.id] = sam.id; A.ST.save(); window.__deep = deep.id; });
+    await p.click('.tab[data-tab="plays"]'); await p.evaluate(() => APP.openPlay('smash'));  await p.waitForTimeout(200);
+    check('Plays: "Our players" shows for an assigned play, naming the QB’s ratings', await p.isVisible('#v-our') && /QB Wes: much faster, stronger arm, poor/.test(await p.textContent('#v-our-note')));
+    await p.click('#side-switch button[data-side="def"]'); await p.evaluate(() => APP.openPlay('cover3', 'def')); await p.waitForTimeout(200);
+    const dv = await p.evaluate(() => { const v = document.querySelector('#v-our-note').textContent; return v; });
+    check('Defense side: our slow, unaware safety is in the sim', /Slow Sam: much slower, very low/.test(dv), dv);
+    await p.selectOption('#v-our', 'avg'); await p.waitForTimeout(150);
+    check('…and can be switched to league average', await p.isHidden('#v-our-note'));
+    // fit warnings use a hand-set rating like a weakness
+    const fitw = await p.evaluate(() => { const A = APP, sam = A.ST.S.data.roster[1]; return A.ROSTER.fit(sam, [{ k: 'speed', why: 'deep zone' }], 'def', window.__deep, A.findDef('cover3')).warns.join(' '); });
+    check('assignments: a hand-set "much slower" warns on a spot that needs speed', /Speed is a weakness/.test(fitw), fitw);
+    check('no script errors (our ratings)', !p.errs.length, p.errs);
+    await p.context().close();
+  }
   /* 9b. Opponent rosters in Firebase: saved as their own documents; before the rules allow it, nothing breaks */
   for (const deny of [false, true]) {
     const init = (a) => {
