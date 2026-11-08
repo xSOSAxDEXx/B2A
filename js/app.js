@@ -248,18 +248,20 @@
      defense has covered best; a good one more often finds the open man. Picked from the play + defense names,
      so a matchup always plays out the same way. */
   function chance(key) { var h = 2166136261; for (var i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 1000) / 1000; }
+  // returns { p, changed, note } — the note always says what his decision making did on this play
   function qbRead(p, def, dec, key) {
-    if (!dec || !def || !canRetarget(p)) return { p: p };
+    if (!dec || !def) return { p: p };
+    if (!canRetarget(p)) return { p: p, note: 'Decision making doesn’t come into play here (no read to make — a run, a trick play or a handoff first).' };
     var drawn = p.events[0].to, ranked = throwTargets(p).map(function (r) {
       return { r: r, s: D.scoreResult(D.simulate(def, E.buildSim(retarget(p, r))).result) };
     }).sort(function (a, b) { return b.s - a.s; });
-    if (ranked.length < 2) return { p: p };
-    var roll = chance(key), pick = drawn, why = '';
-    if (dec < 0 && roll < 0.35 * -dec) { pick = ranked[ranked.length - 1].r; why = 'misread it'; }
-    else if (dec > 0 && roll < 0.45 * dec) { pick = ranked[0].r; why = 'found the open man'; }
-    if (pick === drawn) return { p: p };
-    return { p: retarget(p, pick), note: 'Their QB ' + why + ': threw to ' + pick + ' instead of ' + drawn + '.' };
+    if (ranked.length < 2) return { p: p, note: 'Decision making doesn’t come into play here (only one receiver to throw to).' };
+    var roll = chance(key), worst = ranked[ranked.length - 1].r, best = ranked[0].r;
+    if (dec < 0 && roll < 0.35 * -dec && worst !== drawn) return { p: retarget(p, worst), changed: true, note: 'Their QB misread it: threw to ' + worst + ' (covered best) instead of ' + drawn + '.' };
+    if (dec > 0 && roll < 0.45 * dec && best !== drawn) return { p: retarget(p, best), changed: true, note: 'Their QB found the open man: threw to ' + best + ' instead of ' + drawn + '.' };
+    return { p: p, note: dec < 0 ? 'Their QB got this read right — try another play; a ' + (dec < -1 ? 'very ' : '') + 'poor decision maker misreads about ' + (dec < -1 ? '7' : '3') + ' in 10 he has a choice on.' : 'Their QB stuck with the designed read (' + drawn + ').' };
   }
+  function readHTML(r) { return r.changed ? '<b class="opp-read">' + esc(r.note) + '</b>' : '<span class="muted">' + esc(r.note) + '</span>'; }
   function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return tunedDef(d && view.flip ? D.flipDefense(d) : d); }
 
   /* ---- "Their players": run the sim at a scouted opponent's speed (scout.js). Defaults to this week's opponent. ---- */
@@ -276,7 +278,11 @@
     wrap.classList.toggle('hidden', !on);
     var note = $('#v-opp-note'), o = on && oppId() ? APP.scout.find(oppId()) : null;
     note.classList.toggle('hidden', !o);
-    if (o) note.innerHTML = '<b>' + esc(o.name) + '</b>: ' + esc(APP.scout.summary(o, view.side === 'off' ? 'def' : 'off')) + ' — the simulation runs at their speed.';
+    if (o) {
+      var qbr = APP.scout.profile(o), qbRated = qbr.arm || qbr.esc || qbr.dec;
+      note.innerHTML = '<b>' + esc(o.name) + '</b>: ' + esc(APP.scout.summary(o, view.side === 'off' ? 'def' : 'off')) + ' — the simulation runs at their speed.' +
+        (view.side === 'off' && qbRated ? ' <span class="muted">Their QB’s arm, pocket and decisions show on the <b>Defense</b> side (pick their play under “Against offense”).</span>' : '');
+    }
     if (!on) return;
     var sel = $('#v-opp');
     sel.innerHTML = '<option value="">League average</option>' + list.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('');
@@ -526,7 +532,8 @@
       var qbR = ourOn('off', view.id) && (ourRatings('off', view.id).QB || {}), dfn = vsDefense();
       if (qbR && qbR.dec && !view.throwTo[view.id] && !view.adjust && dfn) {
         var rd = qbRead(p, dfn, qbR.dec, view.id + '|' + dfn.id + '|our');
-        if (rd.note) { p = rd.p; $('#v-our-note').insertAdjacentHTML('beforeend', ' <b class="opp-read">' + esc(rd.note.replace('Their QB', 'Our QB')) + '</b>'); }
+        p = rd.p;
+        if (rd.note) $('#v-our-note').insertAdjacentHTML('beforeend', ' ' + readHTML(rd).replace(/Their QB/g, 'Our QB'));
       }
       $('#v-roll').value = (view.mods[view.id] && view.mods[view.id].roll) || '';
       $('#v-adjust').classList.toggle('on', view.adjust);
@@ -555,7 +562,7 @@
       var off = findOff(offId) || B2A_PLAYS[0], offRun = tunedOff(view.flip ? E.flipPlay(off) : off);
       var oid = oppId(), dec = oid ? APP.scout.profile(APP.scout.find(oid)).dec : 0, read = qbRead(offRun, d, dec, off.id + '|' + d.id + '|' + oid);
       offRun = read.p;
-      if (read.note) { $('#v-opp-note').insertAdjacentHTML('beforeend', ' <b class="opp-read">' + esc(read.note) + '</b>'); }
+      if (read.note) $('#v-opp-note').insertAdjacentHTML('beforeend', ' ' + readHTML(read));
       $('#v-throw-wrap').classList.add('hidden'); $('#v-tweak').classList.add('hidden'); $('#v-adjust-hint').classList.add('hidden'); $('#field').classList.remove('adjusting');
       loadViewer(offRun, d, 'def', keep);
       $('#v-name').textContent = base.num + ' · ' + d.name;
