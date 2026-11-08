@@ -1188,6 +1188,23 @@ textarea,
   border-color: transparent;
 }
 .pos-p { color: var(--text); }
+.ro-pos { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; font-size: .85rem; color: var(--muted); }
+.pos-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.pos-side {
+  display: inline-block;
+  min-width: 5.2em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.pos-line.off .pos-side { background: rgba(62,231,255,.15); color: #3ee7ff; }
+.pos-line.def .pos-side { background: rgba(255,62,200,.15); color: #ff6ad5; }
+.pos-also { font-size: .92em; }
+.pos-note { font-style: italic; }
 
 /* ===== cloud mode: sign-in gate, user chip, roles ===== */
 .cloud-only { display: none !important; }
@@ -1364,6 +1381,7 @@ body.cloud .user-chip { display: flex; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.pin-track.too-early { stroke: #8a8aa0; stroke-opacity: .25; stroke-dasharray: 2 12; }
 .pin-handle { cursor: grab; }
 .pin-hit { fill: rgba(255,225,77,.12); stroke: #ffe14d; stroke-width: 2; stroke-dasharray: 3 3; }
 .pin-body { fill: #ff3ec8; stroke: #ffe14d; stroke-width: 1.5; filter: drop-shadow(0 0 4px #ff3ec8); }

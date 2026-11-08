@@ -13,6 +13,9 @@
   var TL = {}; TRAITS.forEach(function (t) { TL[t[0]] = t[1]; });
   var OFF_POS = [['QB', 'Quarterback'], ['C', 'Center'], ['X', 'X receiver'], ['Y', 'Y receiver / back'], ['Z', 'Z receiver'], ['WR', 'Any receiver']];
   var DEF_POS = [['B', 'Blitzer'], ['CB', 'Corner'], ['M', 'Middle / linebacker'], ['S', 'Safety'], ['ANY', 'Anywhere']];
+  // short names on the roster cards and warnings (saved data keeps the one-letter codes)
+  var DEF_SHORT = { B: 'Blitz', M: 'Middle', CB: 'CB', S: 'Safety', ANY: 'Anywhere' };
+  function defName(k) { return DEF_SHORT[k] || k; }
 
   function roster() { return ST.S.data.roster; }
   function canEditAll() { var CL = window.B2A_CLOUD; return !(CL && CL.enabled) || CL.can('edit'); }
@@ -86,8 +89,8 @@
     } else {
       var want = defPosOf(role, play), dp = p.defPos, dalts = p.defAlt || [];
       if (!dp || dp === 'ANY' || dp === want) res.score += 1;
-      else if (dalts.indexOf(want) >= 0) { res.score += 0.3; res.goods.push('also plays ' + want); }
-      else { res.score -= want === 'B' || dp === 'B' ? 2 : 1; res.warns.push('Out of position — plays ' + [dp].concat(dalts).join(' / ') + ', this spot is ' + want); }
+      else if (dalts.indexOf(want) >= 0) { res.score += 0.3; res.goods.push('also plays ' + defName(want)); }
+      else { res.score -= want === 'B' || dp === 'B' ? 2 : 1; res.warns.push('Out of position — plays ' + [dp].concat(dalts).map(defName).join(' / ') + ', this spot is ' + defName(want)); }
     }
     return res;
   }
@@ -193,13 +196,18 @@
     $('#ro-count').textContent = r.length ? '· ' + r.length + ' players' : '';
     $('#ro-list').innerHTML = r.length ? r.map(rosterCard).join('') : '<p class="hint">No players yet. Add the team so you can assign spots on each play.</p>';
   }
-  /* "WR +C · CB +S · notes" and strength/weakness tags */
+  /* "Offense WR, also C" / "Defense CB, also Blitz, Middle", notes, and strength/weakness tags */
   function rosterCard(p) {
-    var also = function (alts) { return (alts || []).length ? ' +' + esc(alts.join(' ')) : ''; };
-    var positions = '<b class="pos-p">' + esc(p.offPos || '—') + '</b>' + also(p.offAlt) + ' · <b class="pos-p">' + esc(p.defPos || '—') + '</b>' + also(p.defAlt) + (p.notes ? ' · ' + esc(p.notes) : '');
+    var line = function (side, label, prim, alts, name) {
+      name = name || function (k) { return k; };
+      return '<span class="pos-line ' + side + '"><span class="pos-side">' + label + '</span><b class="pos-p">' + esc(prim ? name(prim) : '—') + '</b>' +
+        ((alts || []).length ? ' <span class="pos-also">also ' + esc(alts.map(name).join(', ')) + '</span>' : '') + '</span>';
+    };
+    var positions = line('off', 'Offense', p.offPos, p.offAlt) + line('def', 'Defense', p.defPos, p.defAlt, defName) +
+      (p.notes ? '<span class="pos-note">' + esc(p.notes) + '</span>' : '');
     var tags = function (keys, cls) { return (keys || []).map(function (k) { return '<span class="tag ' + cls + '">' + esc(TL[k]) + '</span>'; }).join(''); };
     return '<button class="ro-card" data-id="' + p.id + '"><span class="ro-num">' + esc(p.number || '–') + '</span>' +
-      '<div class="ro-body"><b>' + esc(p.name) + '</b><span class="muted">' + positions + '</span>' +
+      '<div class="ro-body"><b>' + esc(p.name) + '</b><span class="ro-pos">' + positions + '</span>' +
         '<div class="tagrow">' + tags(p.strengths, 'tr-good') + tags(p.weaknesses, 'tr-bad') + '</div></div></button>';
   }
   $('#ro-list').addEventListener('click', function (e) {

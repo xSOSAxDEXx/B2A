@@ -298,22 +298,19 @@
     var l = pt.matrixTransform(svg.getScreenCTM().inverse());
     return [l.x / E.FIELD.S, E.FIELD.YMAX - l.y / E.FIELD.S];
   }
-  function alongPoly(poly, p) {   // distance along the polyline of the point on it nearest to p
-    var best = Infinity, at = 0, run = 0;
-    for (var i = 1; i < poly.length; i++) {
-      var a = poly[i - 1], b = poly[i], L = E.dist(a, b); if (!L) continue;
-      var k = Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / (L * L)));
-      var d = E.dist(p, [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
-      if (d < best) { best = d; at = run + k * L; }
-      run += L;
-    }
-    return at;
-  }
   function pinInfo(sim) {
     var ev = sim.P.events[0];
     if (!ev || ev.type !== 'pass' || ev.from !== 'QB' || !sim.P.players[ev.to].route.pts.length) return null;
     var poly = [sim.routeStart(ev.to)].concat(sim.P.players[ev.to].route.pts);
-    return { r: ev.to, poly: poly, pt: ev.pinPt || ev.catchPt, ev: ev };
+    var L = E.plen(poly), min = Math.min(L, Math.max(0.5, ev.pinMin || 0.5));
+    var at = ev.pinned ? Math.max(min, Math.min(L, ev.at)) : E.alongPoly(poly, ev.catchPt);
+    return { r: ev.to, poly: poly, L: L, min: min, at: at, pt: ev.pinPt || ev.catchPt, ev: ev };
+  }
+  function polyPiece(poly, d0, d1) {   // the stretch of a route between two distances along it
+    var out = [E.polyAt(poly, d0)], run = 0;
+    for (var i = 1; i < poly.length; i++) { run += E.dist(poly[i - 1], poly[i]); if (run > d0 && run < d1) out.push(poly[i]); }
+    out.push(E.polyAt(poly, d1));
+    return out;
   }
   viewer.overlay = function (a) {
     if (view.side !== 'off' || !view.adjust) return '';
@@ -323,7 +320,9 @@
     });
     var pi = pinInfo(sim);
     if (pi) {
-      s += '<polyline points="' + pi.poly.map(function (q) { return sx(q[0]) + ',' + sy(q[1]); }).join(' ') + '" class="pin-track"/>';
+      var line = function (pts, cls) { return '<polyline points="' + pts.map(function (q) { return sx(q[0]) + ',' + sy(q[1]); }).join(' ') + '" class="' + cls + '"/>'; };
+      if (pi.min > 0.5) s += line(polyPiece(pi.poly, 0, pi.min), 'pin-track too-early');   // the ball can't get there that soon
+      s += line(polyPiece(pi.poly, pi.min, pi.L), 'pin-track');
       var x = sx(pi.pt[0]), y = sy(pi.pt[1]);
       s += '<g class="pin-handle"><circle cx="' + x + '" cy="' + y + '" r="16" class="pin-hit"/><path d="M' + x + ',' + y + ' l-7,-15 a8,8 0 1,1 14,0 z" class="pin-body"/><circle cx="' + x + '" cy="' + (y - 18) + '" r="3" class="pin-dot"/></g>';
     }
@@ -334,37 +333,59 @@
     if (view.side !== 'off' || !view.adjust || !viewer.sim) return;
     viewer.stop(); if (viewer.t !== viewer.sim.tStart) { viewer.t = viewer.sim.tStart; viewer.draw(); }
     var pt = fieldPt(e), sim = viewer.sim, pi = pinInfo(sim);
-    if (pi && E.dist(pt, [pi.pt[0], pi.pt[1] + 0.6]) < 1.8) drag = { kind: 'pin', r: pi.r, poly: pi.poly };
+    var pinDrag = pi && { kind: 'pin', r: pi.r, poly: pi.poly, min: pi.min, L: pi.L, at: pi.at, off: [0, 0] };
+    if (pi && E.dist(pt, [pi.pt[0], pi.pt[1] + 0.8]) < 2.2) {   // the pin (its head sits just above the spot)
+      drag = pinDrag; drag.off = [pt[0] - pi.pt[0], pt[1] - pi.pt[1]];   // keep the pin under the finger where it was grabbed
+    }
     else {
       var bd = 1.4;
       ['X', 'Y', 'Z', 'C'].forEach(function (r) { sim.P.players[r].route.pts.forEach(function (q, i) { var d = E.dist(q, pt); if (d < bd) { bd = d; drag = { kind: 'pt', r: r, i: i }; } }); });
+      // a tap on the target's route (not on a dot) moves the pin there
+      if (!drag && pi && E.dist(pt, E.polyAt(pi.poly, E.alongPoly(pi.poly, pt))) < 1.2) { drag = pinDrag; drag.at = null; movePin(pt); }
     }
     if (!drag) return;
     e.preventDefault(); $('#field').setPointerCapture(e.pointerId);
   });
+  /* rebuilding the field + defense on every finger movement made dragging stutter on phones:
+     changes are collected and redrawn at most once per screen frame */
+  var dragFrame = 0;
+  function redrawSoon() {
+    if (dragFrame) return;
+    dragFrame = requestAnimationFrame(function () { dragFrame = 0; viewer.key = null; viewer.load(currentOff(), vsDefense(), 'off'); adjustHint(); });
+  }
+  function movePin(pt) {
+    var m = mods(), at = E.alongPoly(drag.poly, pt, drag.at);
+    at = Math.max(drag.min, Math.min(drag.L, Math.round(at * 2) / 2));
+    drag.at = at;
+    if (at === m.at && m.atFor === drag.r) return;
+    m.at = at; m.atFor = drag.r; redrawSoon();
+  }
   $('#field').addEventListener('pointermove', function (e) {
     if (!drag) return;
     var pt = fieldPt(e), m = mods();
-    if (drag.kind === 'pin') {
-      var L = E.plen(drag.poly), at = Math.max(0.5, Math.min(L, Math.round(alongPoly(drag.poly, pt) * 2) / 2));
-      if (at === m.at && m.atFor === drag.r) return;
-      m.at = at; m.atFor = drag.r;
-    } else {
+    if (drag.kind === 'pin') { movePin([pt[0] - drag.off[0], pt[1] - drag.off[1]]); return; }
+    else {
       var x = Math.max(0, Math.min(E.FIELD.W, Math.round(pt[0] * 2) / 2)), y = Math.max(-1, Math.min(E.FIELD.YMAX - 0.5, Math.round(pt[1] * 2) / 2));
       if (view.flip) x = E.FIELD.W - x;
       if (!m.pts[drag.r]) m.pts[drag.r] = E.clone(E.normalizePlay(findOff(view.id)).players[drag.r].route.pts);
       var cur = m.pts[drag.r][drag.i]; if (cur[0] === x && cur[1] === y) return;
       m.pts[drag.r][drag.i] = [x, y];
     }
-    viewer.key = null; viewer.load(currentOff(), vsDefense(), 'off'); adjustHint();
+    redrawSoon();
   });
-  function endDrag() { if (drag) { drag = null; select(view.id); } }
+  function endDrag() {
+    if (!drag) return;
+    drag = null;
+    if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+    select(view.id);
+  }
   $('#field').addEventListener('pointerup', endDrag); $('#field').addEventListener('pointercancel', endDrag);
   function adjustHint() {
     var h = $('#v-adjust-hint'), on = view.side === 'off' && view.adjust;
     h.classList.toggle('hidden', !on); if (!on) return;
     var pi = viewer.sim && pinInfo(viewer.sim), r = viewer.dsim && viewer.dsim.result;
-    h.innerHTML = (pi ? 'Drag the <b>📍 pin</b> along ' + pi.r + '’s route to change where he catches it (the QB throws earlier or later to match). ' : '') +
+    h.innerHTML = (pi ? 'Drag the <b>📍 pin</b> (or tap ' + pi.r + '’s route) to set where he <b>catches</b> it — the QB times his throw to meet him there.' +
+      (pi.min > 0.5 ? ' The dim start of the route is too early: the ball can’t get there that soon after the snap.' : '') + ' ' : '') +
       'Drag the <b>dots</b> to reshape routes. View-only — <b>Edit copy</b> saves it as a team play.' +
       (r ? '<br><b class="adj-res">→ ' + esc(D.describe(r)) + '</b>' : '');
   }

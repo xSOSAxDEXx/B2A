@@ -27,6 +27,20 @@
   function dist(a, b) { var dx = a[0] - b[0], dy = a[1] - b[1]; return Math.sqrt(dx * dx + dy * dy); }
   function lerp(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
   function plen(pts) { var L = 0; for (var i = 1; i < pts.length; i++) L += dist(pts[i - 1], pts[i]); return L; }
+  // distance along a polyline to the point on it nearest p (with `near`, ties go to the stretch closest to that distance,
+  // so a route that doubles back — curl, comeback — doesn't make a dragged pin jump between the two legs)
+  function alongPoly(pts, p, near) {
+    var best = Infinity, at = 0, run = 0;
+    for (var i = 1; i < pts.length; i++) {
+      var a = pts[i - 1], b = pts[i], L = dist(a, b); if (!L) continue;
+      var k = Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / (L * L)));
+      var here = run + k * L, d = dist(p, [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+      if (near != null) d += Math.abs(here - near) * 0.15;
+      if (d < best) { best = d; at = here; }
+      run += L;
+    }
+    return at;
+  }
   function polyAt(pts, d) {
     if (d <= 0 || pts.length < 2) return pts[0].slice();
     for (var i = 1; i < pts.length; i++) {
@@ -200,6 +214,12 @@
         } else if (e.t == null) e.t = Math.round(ready * 100) / 100;
         var A = pos(e.from, e.t), f = flightTo(e, A, e.t);
         e.flight = f; e.from_pt = A; e.catchPt = pos(e.to, e.t + f); e.catchT = e.t + f;
+        if (hasRoute) {
+          // the earliest spot on his route the ball can meet him (the QB can't throw before `ready`)
+          var A1 = pos(e.from, ready), f1 = flightTo(e, A1, ready);
+          e.pinMin = Math.ceil(alongPoly(all, pos(e.to, ready + f1)) * 2) / 2;
+          if (e.pinned && e.at < e.pinMin) e.pinPt = e.catchPt;   // pinned earlier than that: the catch is where it really happens
+        }
         if (sit || !hasRoute) {
           // after the catch, turn upfield
           var cp = e.catchPt, yp = [[cp[0], Math.min(FIELD.YMAX - 0.5, cp[1] + 6)]];
@@ -473,7 +493,7 @@
   }
 
   var api = {
-    FIELD: FIELD, ROLES: ROLES, polyAt: polyAt, plen: plen, normalizePlay: normalizePlay, ROLE_NAMES: ROLE_NAMES, COLORS: COLORS, FORMATIONS: FORMATIONS, SNAP_T: SNAP_T,
+    FIELD: FIELD, ROLES: ROLES, polyAt: polyAt, plen: plen, alongPoly: alongPoly, normalizePlay: normalizePlay, ROLE_NAMES: ROLE_NAMES, COLORS: COLORS, FORMATIONS: FORMATIONS, SNAP_T: SNAP_T,
     normalizePlay: normalizePlay, flipPlay: flipPlay, buildSim: buildSim, buildDefense: buildDefense, validate: validate,
     fieldSVG: fieldSVG, routesSVG: routesSVG, playersSVG: playersSVG, staticPlaySVG: staticPlaySVG, viewBox: viewBox,
     sx: sx, sy: sy, dist: dist, clone: clone
