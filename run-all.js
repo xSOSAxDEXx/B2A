@@ -293,7 +293,7 @@ async function page(b, url, opts = {}) {
       const A = APP, E = A.E, D = A.D, d = A.findDef('cover2'), base = A.findOff('center-throwback');
       const sackT = (el) => { const q = E.normalizePlay(base); q.elusive = el; const r = D.simulate(d, E.buildSim(q)).result; return r.kind === 'sack' ? r.t : 99; };
       let mis = 0, good = 0;
-      A.offPlays().forEach(pl => A.defPlays().forEach(dd => { if (A.qbRead(E.normalizePlay(pl), dd, -2, pl.id + dd.id).note) mis++; if (A.qbRead(E.normalizePlay(pl), dd, 2, pl.id + dd.id).note) good++; }));
+      A.offPlays().forEach(pl => A.defPlays().forEach(dd => { if (A.qbRead(E.normalizePlay(pl), dd, -2, pl.id + dd.id).changed) mis++; if (A.qbRead(E.normalizePlay(pl), dd, 2, pl.id + dd.id).changed) good++; }));
       const again = A.qbRead(E.normalizePlay(A.findOff('smash')), d, -2, 'k').note === A.qbRead(E.normalizePlay(A.findOff('smash')), d, -2, 'k').note;
       return { statue: sackT(-2), avg: sackT(0), slippery: sackT(2), mis, good, again };
     });
@@ -313,6 +313,12 @@ async function page(b, url, opts = {}) {
     check('…and can be switched back to league average', (await p.isHidden('#v-opp-note')));
     await p.click('#side-switch button[data-side="def"]'); await p.waitForTimeout(200); await p.selectOption('#v-opp', { label: 'Sharks' }); await p.waitForTimeout(150);
     check('Defense side: their offense runs with their QB’s arm', /QB much stronger arm/.test(await p.textContent('#v-opp-note')));
+    let reads = 0, said = 0;
+    for (const o of await p.evaluate(() => [...document.querySelectorAll('#v-vs option')].map(x => x.value))) {
+      await p.selectOption('#v-vs', o); const t = await p.textContent('#v-opp-note');
+      if (/misread it/.test(t)) reads++; if (/misread it|got this read right|doesn’t come into play/.test(t)) said++;
+    }
+    check('Defense side: a very poor QB misreads on several of their plays, and every play says what his decisions did', reads >= 5 && said === await p.evaluate(() => document.querySelectorAll('#v-vs option').length), [reads, said]);
     await p.click('.tab[data-tab="roster"]'); await p.click('.op-card[data-name="Sharks"]'); await p.fill('#of-name', 'Sharks FC'); await p.click('#of-save'); await p.waitForTimeout(150);
     check('renaming the team updates its games too', await p.evaluate(() => APP.ST.S.data.games.every(g => g.opp === 'Sharks FC')));
     check('no script errors (opponents)', !p.errs.length, p.errs);
