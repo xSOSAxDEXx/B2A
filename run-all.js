@@ -319,6 +319,11 @@ async function page(b, url, opts = {}) {
       check('…and the rest of the team data still loads', !(await p.evaluate(() => document.body.classList.contains('gated'))) && (await p.evaluate(() => APP.ST.S.data.opponents.includes('Jets'))));
       await p.click('.tab[data-tab="gameday"]'); await p.click('#gd-new-game'); await p.fill('#gd-opp-in', 'Owls'); await p.click('#gd-create'); await p.waitForTimeout(300);
       check('…other saves still go through', await p.evaluate(() => Object.keys(__fs).some(k => k.startsWith('teams/b2a/games/') && __fs[k].opp === 'Owls')));
+      await p.click('.tab[data-tab="roster"]'); await p.click('.op-card[data-name="Jets"]');
+      check('…an opponent opens read-only and says why', /can’t be saved until/.test(await p.textContent('#op-form')) && !(await p.isVisible('#of-addp')));
+      await p.evaluate(() => { window.__denyScout = false; });   // coach publishes the rules while the page is open
+      await p.click('.tab[data-tab="plays"]'); await p.click('.tab[data-tab="roster"]'); await p.waitForTimeout(400);
+      check('rules published later: the open form becomes editable without a reload', await p.isVisible('#of-addp') && !(await p.textContent('#op-warn')));
     }
     check('no script errors (cloud opponents' + (deny ? ', old rules)' : ')'), !p.errs.length, p.errs);
     await p.context().close();
