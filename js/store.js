@@ -1,4 +1,4 @@
-/* B2A season data: games, game plans, play results log, play ratings, team plays, roster.
+/* B2A season data: games, game plans, play results log, play ratings, team plays, roster, opponent scouting.
    The team's copy lives in Firebase (see cloud.js): every save goes straight to the whole team.
    With no Firebase config (js/firebase-config.js = null) the site runs in TEST MODE: data lives only in
    this browser tab and is gone on reload. That mode exists for automated tests and is flagged with a banner. */
@@ -30,7 +30,7 @@
     return list.filter(function (r) { return r.k === k; })[0] || { label: k, ok: false };
   }
 
-  function empty() { return { version: 1, updated: null, teamPlays: [], ratings: {}, opponents: [], games: [], activeGame: null, roster: [] }; }
+  function empty() { return { version: 1, updated: null, teamPlays: [], ratings: {}, opponents: [], games: [], activeGame: null, roster: [], scout: [] }; }
   function uid(p) { return (p || 'g') + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   // today's date where you are (toISOString gives tomorrow's date on US evenings)
@@ -86,6 +86,10 @@
   }
   function newGame(opp, date) {
     opp = (opp || '').trim() || 'Opponent';
+    // same team typed differently ("sharks" vs "Sharks"): use the spelling we already have
+    var known = S.data.opponents.concat((S.data.scout || []).map(function (o) { return o.name; }))
+      .filter(function (n) { return n && n.toLowerCase() === opp.toLowerCase(); })[0];
+    if (known) opp = known;
     if (S.data.opponents.indexOf(opp) < 0) S.data.opponents.push(opp);
     var prev = S.data.games.slice().reverse().filter(function (g) { return g.opp === opp; })[0];
     var g = {

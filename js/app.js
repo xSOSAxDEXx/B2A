@@ -135,7 +135,7 @@
   }
 
   /* ================= PLAYS TAB ================= */
-  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false };
+  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false, opp: null };
 
   /* Category dropdown: [value, label]. 't:' = filter by tag */
   var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([
@@ -244,7 +244,29 @@
     throwTargets(p).forEach(function (r) { var s = D.scoreResult(D.simulate(def, E.buildSim(retarget(p, r))).result); if (!best || s > best.s) best = { r: r, s: s }; });
     return best && best.r;
   }
-  function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return d && view.flip ? D.flipDefense(d) : d; }
+  function vsDefense() { var d = view.vsOff ? findDef(view.vsOff) : null; return tunedDef(d && view.flip ? D.flipDefense(d) : d); }
+
+  /* ---- "Their players": run the sim at a scouted opponent's speed (scout.js). Defaults to this week's opponent. ---- */
+  function scouted() { var S = window.APP && APP.scout; return S ? S.list().filter(function (o) { return (o.players || []).length; }) : []; }
+  function oppId() {
+    if (view.opp != null) return view.opp;
+    var g = activeGame(), o = g && window.APP && APP.scout && APP.scout.forName(g.opp);
+    return o && (o.players || []).length ? o.id : '';
+  }
+  function tunedDef(d) { var id = oppId(); return d && id ? APP.scout.tuneDef(d, id) : d; }
+  function tunedOff(p) { var id = oppId(); return p && id ? APP.scout.tuneOff(p, id) : p; }
+  function fillOppSelect() {
+    var list = scouted(), wrap = $('#v-opp-wrap'), on = list.length && (view.side === 'def' || !!view.vsOff);
+    wrap.classList.toggle('hidden', !on);
+    var note = $('#v-opp-note'), o = on && oppId() ? APP.scout.find(oppId()) : null;
+    note.classList.toggle('hidden', !o);
+    if (o) note.innerHTML = '<b>' + esc(o.name) + '</b>: ' + esc(APP.scout.summary(o, view.side === 'off' ? 'def' : 'off')) + ' — the simulation runs at their speed.';
+    if (!on) return;
+    var sel = $('#v-opp');
+    sel.innerHTML = '<option value="">League average</option>' + list.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>'; }).join('');
+    sel.value = oppId();
+  }
+  $('#v-opp').addEventListener('change', function (e) { view.opp = e.target.value; select(view.side === 'off' ? view.id : view.defId); });
   function throwChoice(p) {
     var c = view.throwTo[view.id] || '';
     if (c === 'best') { var d = vsDefense(); return d ? bestTarget(p, d) : ''; }
@@ -438,7 +460,7 @@
   function select(id, keep) {
     var side = view.side;
     if (side === 'off') view.id = id; else view.defId = id;
-    fillVsSelect();
+    fillVsSelect(); fillOppSelect();
     var base, info = '';
     if (side === 'off') {
       base = findOff(id); if (!base) { base = offPlays()[0]; view.id = base.id; }
@@ -468,9 +490,9 @@
       base = findDef(id); if (!base) { base = defPlays()[0]; view.defId = base.id; }
       var d = currentDef();
       var offId = view.vsDef[view.defId] || base.vs;
-      var off = findOff(offId) || B2A_PLAYS[0];
+      var off = findOff(offId) || B2A_PLAYS[0], offRun = tunedOff(view.flip ? E.flipPlay(off) : off);
       $('#v-throw-wrap').classList.add('hidden'); $('#v-tweak').classList.add('hidden'); $('#v-adjust-hint').classList.add('hidden'); $('#field').classList.remove('adjusting');
-      loadViewer(view.flip ? E.flipPlay(off) : off, d, 'def', keep);
+      loadViewer(offRun, d, 'def', keep);
       $('#v-name').textContent = base.num + ' · ' + d.name;
       $('#v-meta').textContent = d.front + ' · vs ' + off.name + (view.flip ? ' (flipped)' : '');
       var lg2 = $('#v-legal'); lg2.className = 'legal ok'; var nb = d.defenders.filter(function (x) { return x.job === 'blitz'; }).length; lg2.textContent = nb ? nb + ' BLITZER' + (nb > 1 ? 'S' : '') : 'NO BLITZ';

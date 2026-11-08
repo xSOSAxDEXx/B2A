@@ -6,10 +6,13 @@
      doc fields  : ownerUid, opponents, activeGame, updated
      members/{email} : role ('coach' | 'editor' | 'player'), playerId, name
      roster/{playerId}, games/{gameId} (without log), log/{entryId} (with game id),
-     plays/{playId} (team plays, sorted by 'created'), ratings/{playId} ({ v: 1 | -1 })
+     plays/{playId} (team plays, sorted by 'created'), ratings/{playId} ({ v: 1 | -1 }),
+     scout/{oppId} (an opponent's roster + speed/arm ratings: { name, notes, players: [...] })
    Before Nov 2026 team plays and ratings were fields on the team doc. Until the new firestore.rules are
    published the site keeps using those fields ("legacy layout"); once they are, the first coach/editor to
    open the site moves them into their own documents automatically.
+   scout/ was added later still: until the rules that allow it are published, opponent rosters can't be saved
+   (C.scoutReady() is false and the Roster tab says so) but everything else keeps working.
 
    Offline: Firestore keeps a copy on the device, so the site opens and saves with no signal; changes
    queue up and sync when the connection comes back. Signing out wipes that copy. */
@@ -21,8 +24,9 @@
   if (!C.enabled) { root.B2A_CLOUD = C; return; }
 
   var db, auth, teamRef, unsubs = [], last = {}, firstData = null, ST;
-  var parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {} };
-  var layout = { known: { plays: false, ratings: false }, server: {}, split: true }, migrating = false;
+  var parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {}, scout: {} };
+  var layout = { known: { plays: false, ratings: false }, server: {}, split: true, scout: null }, migrating = false;
+  C.scoutReady = function () { return layout.scout; };   // null = still checking, false = rules not published yet
   C.pending = 0;   // saves waiting for the server (more than 0 while offline)
 
   function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('Could not load ' + src)); }; document.head.appendChild(s); }); }
@@ -139,6 +143,7 @@
       u.meta = { opponents: d.opponents || [], activeGame: d.activeGame || null, ratings: d.ratings || {}, teamPlays: (d.teamPlays || []).map(function (p, i) { return Object.assign({ id: p.id }, packPlay(p, i)); }) };
     }
     (d.roster || []).forEach(function (p) { u['roster/' + p.id] = p; });
+    if (layout.scout) (d.scout || []).forEach(function (o) { u['scout/' + o.id] = { name: o.name || 'Opponent', notes: o.notes || '', players: o.players || [] }; });
     (d.games || []).forEach(function (g) {
       var gg = {}; Object.keys(g).forEach(function (k) { if (k !== 'log') gg[k] = g[k]; });
       u['games/' + g.id] = gg;
@@ -190,8 +195,10 @@
       pending = false;
       if (!parts.meta || !layout.known.plays || !layout.known.ratings) return;   // wait until we know which layout the rules allow
       var m = parts.meta;
-      var d = { version: 1, updated: m.updated || null, opponents: m.opponents || [], activeGame: m.activeGame || null, roster: [], games: [], teamPlays: [], ratings: {} };
+      var d = { version: 1, updated: m.updated || null, opponents: m.opponents || [], activeGame: m.activeGame || null, roster: [], games: [], teamPlays: [], ratings: {}, scout: [] };
       Object.keys(parts.roster).forEach(function (id) { d.roster.push(parts.roster[id]); });
+      Object.keys(parts.scout).forEach(function (id) { d.scout.push(parts.scout[id]); });
+      d.scout.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       var logs = {}; Object.keys(parts.log).forEach(function (id) { var l = parts.log[id]; (logs[l.game] = logs[l.game] || []).push(l); });
       Object.keys(parts.games).forEach(function (id) {
         var g = Object.assign({}, parts.games[id]);
@@ -219,11 +226,12 @@
   }
   function listen() {
     unsubs.forEach(function (u) { u(); }); unsubs = [];
-    parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {} };
-    layout = { known: { plays: false, ratings: false }, server: {}, split: true }; migrating = false;
+    parts = { meta: null, roster: {}, games: {}, log: {}, plays: {}, ratings: {}, scout: {} };
+    layout = { known: { plays: false, ratings: false }, server: {}, split: true, scout: null }; migrating = false;
     function coll(name, onErr) {
       unsubs.push(teamRef.collection(name).onSnapshot(function (snap) {
         snap.docChanges().forEach(function (ch) { if (ch.type === 'removed') delete parts[name][ch.doc.id]; else parts[name][ch.doc.id] = Object.assign({ id: ch.doc.id }, ch.doc.data()); });
+        if (name === 'scout') layout.scout = true;
         if (name in layout.known) {
           layout.known[name] = true;
           if (!(snap.metadata && snap.metadata.fromCache)) layout.server[name] = true;   // the server itself said yes, not just the copy on this device
@@ -243,6 +251,12 @@
     coll('plays', newLayoutErr('plays')); coll('ratings', newLayoutErr('ratings'));
     unsubs.push(teamRef.onSnapshot(function (doc) { parts.meta = doc.data() || {}; rebuild(); }, snapErr));
     coll('roster'); coll('games'); coll('log');
+    // opponent rosters: if the rules don't allow them yet, leave them out instead of locking anyone out
+    coll('scout', function (e) {
+      if (e.code !== 'permission-denied') return snapErr(e);
+      layout.scout = false; rebuild();
+      root.APP && APP.onScoutReady && APP.onScoutReady();
+    });
     unsubs.push(teamRef.collection('members').onSnapshot(function (snap) {
       C.members = snap.docs.map(function (d) { return Object.assign({ email: d.id }, d.data()); });
       var me = C.members.filter(function (m) { return m.email === C.user.email.toLowerCase(); })[0];

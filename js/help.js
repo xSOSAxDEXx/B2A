@@ -36,7 +36,7 @@
       '<dt>' + ICON('clipboard') + ' Game Day</dt><dd>This week’s opponent and game plan, the scoreboard, the current down and field position, suggested calls for the situation, and the <b>Log the last play</b> panel.</dd>' +
       '<dt>' + ICON('chart') + ' Stats</dt><dd>Record, matchups, which plays work (success %), results by down, and takeaways. Filter by opponent and offense/defense. Tap a play to open it.</dd>' +
       '<dt>' + ICON('brain') + ' Quiz</dt><dd><b>Quiz me on my spots</b> (by your name) or quiz by position. Routes, reads, timing, coverage jobs, and league rules.</dd>' +
-      '<dt>' + ICON('users') + ' Roster</dt><dd>Players, their positions and strengths/weaknesses, and who plays each spot on every play in this week’s plan. Coach also manages <b>Team access</b> here.</dd>' +
+      '<dt>' + ICON('users') + ' Roster</dt><dd>Players, their positions and strengths/weaknesses, and who plays each spot on every play in this week’s plan. <b>Opponents</b>: each team we play, with their players rated faster/slower than the league (and arm strength for QBs). Coach also manages <b>Team access</b> here.</dd>' +
       '<dt>' + ICON('pen') + ' Designer</dt><dd>Draw new plays (editors and coach). Saved plays show up for everyone under <b>Team plays</b>.</dd>' +
       '<dt>' + ICON('book') + ' Guide</dt><dd>Strategy (QB play, using the center, situations, defense), a coverage cheat sheet, and our league rules.</dd>' +
       '</dl>' },
@@ -56,6 +56,7 @@
     { id: 'coach', icon: 'shield', title: 'Coach & editor: running game day', staff: true, body:
       '<ol>' +
       '<li><b>Before the week:</b> Game Day → <b>＋ New game</b> (opponent + date). It copies your last plan vs that team if there is one.</li>' +
+      '<li><b>Scout them:</b> Roster → <b>Opponents</b> → tap their team (or <b>Add their roster</b> under the matchup in Game Day). Add their players with a position and how fast they are compared with the rest of the league; for their QB also pick how strong his arm is. In Plays, <b>Their players</b> then runs every simulation at their speed — it picks this week’s opponent by default.</li>' +
       '<li><b>Build the plan:</b> add offensive and defensive plays with the dropdowns, or tap <b>＋ Game plan</b> on any play. Add scouting notes.</li>' +
       '<li><b>Assign spots:</b> Roster → Game plan assignments → <b>Auto-assign best fits</b>, then adjust. ⚠ warnings mean a spot needs something that’s listed as that player’s weakness, he’s out of position, or he’s in two spots.</li>' +
       '<li><b>During the game:</b> set the down and field position, check <b>Call this</b> for suggestions, and after each snap pick the play + result in <b>Log the last play</b> (add yards if you know them). Downs, first downs, touchdowns and turnovers on downs update automatically, and logging <b>Gave up TD</b> on defense adds 6 to their score. Tap ✕ on a logged play to remove a mistake.</li>' +

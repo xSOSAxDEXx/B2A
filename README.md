@@ -13,7 +13,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - **Game Day** — the week's game (opponent + date), offensive/defensive game plan, scouting notes, scoreboard, 3-down series tracker, suggested calls (game plan + situation + our success rates + ratings), and a one-tap results log that advances downs and scores automatically.
 - **Stats** — record, matchups, success rate by play, by down, and takeaways — filter by opponent and offense/defense.
 - **Quiz** — **Quiz me on my spots** (by player name, from this week's assignments) or by position (QB, C, X, Y, Z, defender, blitzer): routes, targets, timing, who's open vs a coverage, which call stops their play, your coverage job, league rules.
-- **Roster** — players (name, number, primary + extra offense/defense positions, strengths & weaknesses), game-plan assignments with fit warnings and auto-assign, and **Team access** (coach only).
+- **Roster** — players (name, number, primary + extra offense/defense positions, strengths & weaknesses), game-plan assignments with fit warnings and auto-assign, **Opponents** (each team's players rated faster/slower than the league, plus QB arm strength — the Plays viewer's **Their players** runs the simulation at their speed), and **Team access** (coach only).
 - **Designer** — draw plays, set the throw on a receiver's break or a pinned catch spot, live rules check, save to team plays.
 - **Guide** — strategy, coverage cheat sheet, league rules & penalties.
 - **Help** — how to use the site.
@@ -22,7 +22,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - Project `b2a-playbook` on the free Spark plan; setup steps in **[SETUP-FIREBASE.md](SETUP-FIREBASE.md)**.
 - `js/firebase-config.js` — the Firebase web config (safe to commit; access is controlled by the rules and the team list).
 - `firestore.rules` — paste into Firebase console → Firestore → Rules → Publish after any change. Roles: **coach** (everything + access list), **editor** (all data), **player** (view, log results, scoreboard/downs, own roster profile).
-- Teammates are added in Roster → Team access; data lives in `teams/b2a` (+ `members`, `roster`, `games`, `log`, `plays`, `ratings`). Team plays are stored packed as JSON text (Firestore can't store the lists-inside-lists that routes use).
+- Teammates are added in Roster → Team access; data lives in `teams/b2a` (+ `members`, `roster`, `games`, `log`, `plays`, `ratings`, `scout` = opponent rosters). Team plays are stored packed as JSON text (Firestore can't store the lists-inside-lists that routes use).
 - Offline: Firestore keeps a copy on each device, so the site opens and saves with no signal and syncs later (header shows “Offline · N to sync”). Signing out wipes that copy.
 - With the config set to `null` the site runs in **test mode**: no logins, nothing saved, yellow banner at the bottom. Only for automated tests — never deploy it that way.
 
@@ -33,7 +33,7 @@ Interactive 5-on-5 flag football playbook for B2A — adult 18+ league on NFL FL
 - `js/defense.js` coverage simulation (blitz / man / zone / spy), flag pulls, sacks, incompletions, interceptions; `scoreResult()` ranks outcomes for "Best read" and the quiz
 - `js/plays.js`, `js/defense-plays.js` the playbook data
 - `js/store.js` season data; `js/cloud.js` Firebase sign-in + live sync
-- `js/app.js` (Plays tab + shared helpers), `gameday.js`, `stats.js`, `quiz.js`, `roster.js`, `designer.js`, `guide.js`, `guide-ui.js`, `rules.js`, `help.js`, `icons.js`, `boot.js`
+- `js/app.js` (Plays tab + shared helpers), `gameday.js`, `stats.js`, `quiz.js`, `roster.js`, `scout.js` (opponent rosters + their effect on the simulation), `designer.js`, `guide.js`, `guide-ui.js`, `rules.js`, `help.js`, `icons.js`, `boot.js`
 
 ## Testing
 Browser tests live on the `tests` branch (never served by GitHub Pages): `git worktree add ../B2A-tests tests`, then `node ../B2A-tests/run-all.js .` from this folder. Run them before every push to `main`. After changing `firestore.rules`, also run the security-rules tests in the Firestore emulator (`npm run rules` on that branch).

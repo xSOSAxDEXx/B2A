@@ -167,10 +167,12 @@
     function routeEnd(role) { return tracks[role].end; }
     function flightTo(e, A, guessT) {
       var f = 0.3, B;
-      for (var i = 0; i < 10; i++) { B = pos(e.to, guessT + f); f = dist(A, B) / (e.type === 'pass' ? PASS_SPEED : PITCH_SPEED) + 0.05; }
+      for (var i = 0; i < 10; i++) { B = pos(e.to, guessT + f); f = dist(A, B) / ballSpeed(e) + 0.05; }
       return f;
     }
     var ready = SNAP_T + 0.35;
+    // P.arm: the QB's arm vs the league average (1.1 = 10% faster passes) — set from an opponent's scouting
+    function ballSpeed(e) { return e.type === 'pass' ? PASS_SPEED * (e.from === 'QB' && P.arm ? P.arm : 1) : PITCH_SPEED; }
     P.events.forEach(function (e) {
       if (e.type === 'handoff') {
         // snap the handoff to the moment the two players are closest (within 0.5s of the authored time)
@@ -198,13 +200,13 @@
           var tp = polyAt(all, Math.max(0.5, Math.min(plen(all), e.at))), tr0 = tracks[e.to], tBest = tr0.track[0].t, dBest = Infinity;
           for (var ts = tr0.track[0].t; ts <= tr0.end + 0.01; ts += 0.02) { var dd0 = dist(trackAt(tr0, ts), tp); if (dd0 < dBest - 1e-4) { dBest = dd0; tBest = ts; } }
           var tt3 = tBest - 0.5;
-          for (var j3 = 0; j3 < 8; j3++) tt3 = tBest - (dist(pos(e.from, tt3), tp) / PASS_SPEED + 0.05);
+          for (var j3 = 0; j3 < 8; j3++) tt3 = tBest - (dist(pos(e.from, tt3), tp) / ballSpeed(e) + 0.05);
           e.t = Math.round(Math.max(ready, tt3) * 100) / 100; e.onBreak = true; e.sit = sit; e.pinned = true; e.pinPt = tp;
         } else if (e.brk != null && hasRoute) {
           if (sit) {
             // anticipation: release so the ball arrives as he settles/turns
             var tc = routeEnd(e.to), tt2 = tc - 0.6;
-            for (var j = 0; j < 8; j++) { var A0 = pos(e.from, tt2); tt2 = tc - (dist(A0, end) / PASS_SPEED + 0.05); }
+            for (var j = 0; j < 8; j++) { var A0 = pos(e.from, tt2); tt2 = tc - (dist(A0, end) / ballSpeed(e) + 0.05); }
             e.t = Math.max(ready, tt2);
           } else {
             var bi = Math.min(e.brk, rt.pts.length - 1);

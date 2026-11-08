@@ -231,6 +231,7 @@
       ? '<span>vs</span> ' + esc(g.opp) + ' <small>' + esc(fmtDate(g.date)) + '</small>'
       : '<small>Create a game to build the weekly plan and track results.</small>';
     $('#gd-sync').innerHTML = syncPill();
+    $('#gd-scout-line').innerHTML = g && A.scoutLineHTML ? A.scoutLineHTML(g.opp) : '';
   }
   /* "Live" / "Offline — N waiting" / "Saving…" — also shown as a small badge in the header on every tab */
   function syncState() {

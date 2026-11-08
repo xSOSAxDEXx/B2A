@@ -63,11 +63,8 @@
     return out;
   }
   function defPosOf(label, def) {
-    var d = def.defenders.filter(function (x) { return x.id === label; })[0]; if (!d) return 'ANY';
-    if (d.job === 'blitz') return 'B';
-    if (/^(M|RB)$/.test(label)) return 'M';
-    if (d.job === 'zone' && d.drop[1] >= 10) return 'S';
-    return 'CB';
+    var d = def.defenders.filter(function (x) { return x.id === label; })[0];
+    return d ? A.D.posOf(d) : 'ANY';
   }
 
   /* ---------- fit ---------- */

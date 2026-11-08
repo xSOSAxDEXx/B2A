@@ -39,6 +39,11 @@ service cloud.firestore {
       return d.side in ['off', 'def'] && shortText(d.result, 20) && d.game is string && d.size() <= 30;
     }
     function validMember(d) { return d.role in ['coach', 'editor', 'player']; }
+    // an opponent's roster: team name, notes, and up to 30 players with their ratings
+    function validScout(d) {
+      return d.keys().hasOnly(['name', 'notes', 'players']) && shortText(d.name, 60) && d.name.size() > 0
+        && shortText(d.notes, 2000) && d.players is list && d.players.size() <= 30;
+    }
 
     match /teams/{team} {
       allow read: if isMember(team);
@@ -87,6 +92,12 @@ service cloud.firestore {
       match /ratings/{playId} {   // 👍 / 👎 per play
         allow read: if isMember(team);
         allow create, update: if isEditor(team) && validRating(request.resource.data);
+        allow delete: if isEditor(team);
+      }
+
+      match /scout/{oppId} {   // opponents' rosters (Roster tab → Opponents)
+        allow read: if isMember(team);
+        allow create, update: if isEditor(team) && validScout(request.resource.data);
         allow delete: if isEditor(team);
       }
     }

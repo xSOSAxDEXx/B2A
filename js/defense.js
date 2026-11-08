@@ -130,7 +130,7 @@
           var react = d.job === 'zone' && d.drop[1] >= 10 ? 0.65 : 0.5;   // deep defenders read longer before driving
           if (tin > react) { if (mine) { target = cp; speed = d.job === 'zone' && d.drop[1] >= 10 ? 5.4 : 5.8; } else if (tin > 0.7) { target = cp; speed = 5; } }
         }
-        var np = clampX(moveTo(d.pos, target, speed * DT));
+        var np = clampX(moveTo(d.pos, target, speed * (d.spd || 1) * DT));   // spd: this player's speed vs the league (scouting)
         if (passEv && b.air === 'pass' && b.ev === passEv && d.nearT == null && dist(np, passEv.catchPt) < 1.0) d.nearT = t;
         if (d.job !== 'blitz' && t < firstEx && np[1] < 0.3) np[1] = 0.3;  // can't cross LOS before an exchange
         d.pos = np;
@@ -253,6 +253,13 @@
     return '<g class="result ' + res.kind + '"><circle cx="' + x + '" cy="' + y + '" r="18"/><text x="' + tx + '" y="' + (y - 24) + '">' + txt + '</text></g>';
   }
 
+  /* which roster position plays a defender's spot: B blitzer, M middle, S safety, CB corner */
+  function posOf(d) {
+    if (d.job === 'blitz') return 'B';
+    if (/^(M|RB)$/.test(d.id) || d.job === 'spy') return 'M';
+    if (d.job === 'zone' && d.drop[1] >= 10) return 'S';
+    return 'CB';
+  }
   function describe(res) {
     if (!res) return '';
     var pre = '';
@@ -278,7 +285,7 @@
   }
 
   var api = {
-    simulate: simulate, scoreResult: scoreResult, describe: describe, flipDefense: flipDefense,
+    simulate: simulate, scoreResult: scoreResult, posOf: posOf, describe: describe, flipDefense: flipDefense,
     strength: strength, onText: onText, cornerLabel: cornerLabel,
     assignmentsSVG: assignmentsSVG, defendersSVG: defendersSVG, resultSVG: resultSVG, legendHTML: legendHTML, shapePath: shapePath,
     JOB_NAMES: JOB_NAMES, JOB_COLORS: JOB_COLORS
