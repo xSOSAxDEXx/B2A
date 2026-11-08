@@ -135,7 +135,7 @@
   }
 
   /* ================= PLAYS TAB ================= */
-  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false, opp: null };
+  var view = { side: 'off', id: B2A_PLAYS[0].id, defId: B2A_DEF_PLAYS[0].id, flip: false, cat: 'all', sort: 'book', q: '', vsOff: '', vsDef: {}, throwTo: {}, mods: {}, adjust: false, opp: null, our: '' };
 
   /* Category dropdown: [value, label]. 't:' = filter by tag */
   var OFF_FILTERS = [['all', 'All offense']].concat(B2A_CATS).concat([
@@ -323,12 +323,52 @@
   $('#v-tweak-reset').addEventListener('click', function () { delete view.mods[view.id]; view.throwTo[view.id] = ''; select(view.id); });
 
   function currentOff() {
-    var p = moddedOff(); if (!canRetarget(p)) return p;
-    p = retarget(p, throwChoice(p));
-    var m = view.mods[view.id];
-    if (m && m.at != null && m.atFor === p.events[0].to) { p = E.clone(p); p.events[0].at = m.at; }
-    return p;
+    var p = moddedOff();
+    if (canRetarget(p)) {
+      p = retarget(p, throwChoice(p));
+      var m = view.mods[view.id];
+      if (m && m.at != null && m.atFor === p.events[0].to) { p = E.clone(p); p.events[0].at = m.at; }
+    }
+    return ourOff(p);
   }
+
+  /* ---- "Our players": run the sim with this week's assigned players' ratings (roster.js / scout.js) ---- */
+  var RATED = { off: { all: ['speed'], QB: ['speed', 'arm', 'esc', 'dec'] }, def: { all: ['speed', 'aware'] } };
+  function ourAsg(side, id) {
+    var g = activeGame(), a = g && ((g.assign || {})[side] || {})[id];
+    return a && Object.keys(a).length && window.APP && APP.ourRating ? a : null;
+  }
+  function ourRatings(side, id) {   // { role: { name, speed, … } } for every filled spot
+    var a = ourAsg(side, id); if (!a) return null;
+    var out = {};
+    Object.keys(a).forEach(function (r) {
+      var pl = APP.rosterPlayer(a[r]); if (!pl) return;
+      var x = { name: pl.name };
+      (side === 'off' && r === 'QB' ? RATED.off.QB : RATED[side].all).forEach(function (k) { x[k] = APP.ourRating(pl, k); });
+      out[r] = x;
+    });
+    return out;
+  }
+  function ourOn(side, id) { return view.our !== 'avg' && !!ourAsg(side, id); }
+  function ourOff(p) { return ourOn('off', view.id) ? APP.scout.applyOff(p, ourRatings('off', view.id)) : p; }
+  function ourDef(d) { return d && ourOn('def', view.defId) ? APP.scout.applyDef(d, ourRatings('def', view.defId)) : d; }
+  function ourNote(side, id) {   // "QB Wes: stronger arm · X Mikey: faster"
+    var rr = ourRatings(side, id) || {}, bits = [];
+    Object.keys(rr).forEach(function (r) {
+      var x = rr[r], w = Object.keys(APP.RATINGS).filter(function (k) { return x[k]; }).map(function (k) { return APP.ratingWord(APP.RATINGS[k][1], x[k]).toLowerCase(); });
+      if (w.length) bits.push(r + ' ' + x.name + ': ' + w.join(', '));
+    });
+    return bits.length ? bits.join(' · ') : 'everyone is about league average';
+  }
+  function fillOurSelect() {
+    var side = view.side, id = side === 'off' ? view.id : view.defId, has = !!ourAsg(side, id);
+    $('#v-our-wrap').classList.toggle('hidden', !has);
+    $('#v-our').value = view.our;
+    var note = $('#v-our-note'), on = has && view.our !== 'avg';
+    note.classList.toggle('hidden', !on);
+    if (on) note.innerHTML = '<b>Our players</b> (this week’s assignments) — ' + esc(ourNote(side, id)) + '.';
+  }
+  $('#v-our').addEventListener('change', function (e) { view.our = e.target.value; select(view.side === 'off' ? view.id : view.defId); });
 
   /* ---- Adjust mode: drag route points; slide the 📍 catch pin along the target's route ---- */
   function fieldPt(e) {
@@ -436,7 +476,7 @@
     viewer.key = key; viewer.load(off, def, mode);
   }
 
-  function currentDef() { var d = findDef(view.defId) || defPlays()[0]; return view.flip ? D.flipDefense(d) : d; }
+  function currentDef() { var d = findDef(view.defId) || defPlays()[0]; return ourDef(view.flip ? D.flipDefense(d) : d); }
 
   function fillVsSelect() {
     var sel = $('#v-vs');
@@ -476,12 +516,18 @@
   function select(id, keep) {
     var side = view.side;
     if (side === 'off') view.id = id; else view.defId = id;
-    fillVsSelect(); fillOppSelect();
+    fillVsSelect(); fillOppSelect(); fillOurSelect();
     var base, info = '';
     if (side === 'off') {
       base = findOff(id); if (!base) { base = offPlays()[0]; view.id = base.id; }
       fillThrowSelect(moddedOff());
       var p = currentOff();
+      // our QB's decision making picks who he throws to (only when nobody chose the target by hand)
+      var qbR = ourOn('off', view.id) && (ourRatings('off', view.id).QB || {}), dfn = vsDefense();
+      if (qbR && qbR.dec && !view.throwTo[view.id] && !view.adjust && dfn) {
+        var rd = qbRead(p, dfn, qbR.dec, view.id + '|' + dfn.id + '|our');
+        if (rd.note) { p = rd.p; $('#v-our-note').insertAdjacentHTML('beforeend', ' <b class="opp-read">' + esc(rd.note.replace('Their QB', 'Our QB')) + '</b>'); }
+      }
       $('#v-roll').value = (view.mods[view.id] && view.mods[view.id].roll) || '';
       $('#v-adjust').classList.toggle('on', view.adjust);
       $('#v-tweak-reset').classList.toggle('hidden', !hasMods() && !view.throwTo[view.id]);

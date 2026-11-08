@@ -43,21 +43,35 @@
     var qbs = pl.filter(function (p) { return p.off === 'QB'; }), qb = function (f) { return avg(qbs.map(function (p) { return +p[f] || 0; })); };
     return { def: def, aware: aware, off: off, arm: qb('arm'), esc: qb('esc'), dec: qb('dec') };
   }
+  /* ratings → a play the simulation can run. Used for opponents (by position) and for our own players (by assignment).
+     applyOff(play, { QB: { speed, arm, esc }, X: { speed }, … })  applyDef(def, { <defender id>: { speed, aware }, … }) */
+  function applyOff(play, byRole) {
+    var p = E.normalizePlay(play);
+    E.ROLES.forEach(function (r) { var x = byRole[r]; if (x && x.speed) p.players[r].route.speed *= 1 + SPD_STEP * x.speed; });
+    var qb = byRole.QB || {};
+    if (qb.arm) p.arm = 1 + ARM_STEP * qb.arm;
+    if (qb.esc) p.elusive = qb.esc;
+    return p;   // decision making is applied by the Plays viewer (it picks who the QB throws to)
+  }
+  function applyDef(def, byId) {
+    var d = E.clone(def);
+    d.defenders.forEach(function (x) { var r = byId[x.id]; if (!r) return; x.spd = 1 + SPD_STEP * (r.speed || 0); x.aw = r.aware || 0; });
+    return d;
+  }
   // their defense: each defender runs at the speed — and reads the play with the awareness — of their players at that position
   function tuneDef(def, id) {
     var o = find(id); if (!def || !o || !(o.players || []).length) return def;
-    var pr = profile(o), d = E.clone(def);
-    d.defenders.forEach(function (x) { var k = D.posOf(x); x.spd = 1 + SPD_STEP * (pr.def[k] || 0); x.aw = pr.aware[k] || 0; });
-    return d;
+    var pr = profile(o), byId = {};
+    def.defenders.forEach(function (x) { var k = D.posOf(x); byId[x.id] = { speed: pr.def[k] || 0, aware: pr.aware[k] || 0 }; });
+    return applyDef(def, byId);
   }
-  // their offense: receivers' route speed and the QB's arm
+  // their offense: receivers' route speed, the QB's speed, arm and pocket presence
   function tuneOff(play, id) {
     var o = find(id); if (!play || !o || !(o.players || []).length) return play;
-    var pr = profile(o), p = E.normalizePlay(play);
-    E.ROLES.forEach(function (r) { p.players[r].route.speed *= 1 + SPD_STEP * (pr.off[r] || 0); });
-    p.arm = 1 + ARM_STEP * pr.arm;
-    p.elusive = pr.esc;   // their QB's decision making is applied by the Plays viewer (it picks who he throws to)
-    return p;
+    var pr = profile(o), byRole = {};
+    E.ROLES.forEach(function (r) { byRole[r] = { speed: pr.off[r] || 0 }; });
+    byRole.QB.arm = pr.arm; byRole.QB.esc = pr.esc;
+    return applyOff(play, byRole);
   }
 
   /* ---------- words ---------- */
@@ -218,5 +232,7 @@
     var g = A.activeGame(); A.showTab('roster'); if (g) openForm(g.opp);
   });
 
-  A.scout = { list: list, find: find, forName: forName, profile: profile, tuneDef: tuneDef, tuneOff: tuneOff, summary: summary, open: function (n) { A.showTab('roster'); openForm(n); } };
+  A.RATINGS = { speed: ['Speed', SPEED], aware: ['Awareness', AWARE], arm: ['Arm', ARM], esc: ['Vs blitz', ESCAPE], dec: ['Decisions', DECIDE] };
+  A.ratingWord = word;
+  A.scout = { list: list, find: find, forName: forName, profile: profile, tuneDef: tuneDef, tuneOff: tuneOff, applyOff: applyOff, applyDef: applyDef, summary: summary, open: function (n) { A.showTab('roster'); openForm(n); } };
 })();

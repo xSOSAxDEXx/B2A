@@ -18,6 +18,22 @@
   function defName(k) { return DEF_SHORT[k] || k; }
 
   function roster() { return ST.S.data.roster; }
+
+  /* ---------- ratings vs the league (-2 … +2), used by the simulation for whoever is assigned to a spot ----------
+     Each one is either set by hand (p.ratings[k]) or graded automatically from the strengths/weaknesses:
+     a strength counts +1, a weakness −1. */
+  var AUTO = { speed: ['speed'], aware: ['man', 'zone'], arm: ['arm'], esc: ['elusive'], dec: ['decision'] };
+  var QB_ONLY = { arm: 1, esc: 1, dec: 1 };
+  function autoRating(p, k) {
+    var v = 0;
+    AUTO[k].forEach(function (t) { if ((p.strengths || []).indexOf(t) >= 0) v++; if ((p.weaknesses || []).indexOf(t) >= 0) v--; });
+    return Math.max(-2, Math.min(2, v));
+  }
+  function manual(p, k) { return p && p.ratings && p.ratings[k] != null ? p.ratings[k] : null; }
+  function rating(p, k) { var m = manual(p, k); return m != null ? m : autoRating(p, k); }
+  function playsQB(p) { return p.offPos === 'QB' || (p.offAlt || []).indexOf('QB') >= 0; }
+  // a hand-set rating counts in the fit check like a strength (+1 or better) or weakness (−1 or worse)
+  var NEED_RATING = { speed: 'speed', arm: 'arm', decision: 'dec', man: 'aware', zone: 'aware' };
   function canEditAll() { var CL = window.B2A_CLOUD; return !(CL && CL.enabled) || CL.can('edit'); }
   function player(id) { return roster().filter(function (p) { return p.id === id; })[0]; }
   function game() { return ST.game(); }
@@ -71,7 +87,12 @@
   function fit(p, needs, side, role, play) {
     var res = { score: 0, warns: [], goods: [] };
     if (!p) return res;
-    var s = p.strengths || [], w = p.weaknesses || [];
+    var s = (p.strengths || []).slice(), w = (p.weaknesses || []).slice();
+    Object.keys(NEED_RATING).forEach(function (t) {
+      var m = manual(p, NEED_RATING[t]); if (m == null) return;
+      if (m >= 1 && s.indexOf(t) < 0 && w.indexOf(t) < 0) s.push(t);
+      if (m <= -1 && w.indexOf(t) < 0 && s.indexOf(t) < 0) w.push(t);
+    });
     needs.forEach(function (n) {
       if (w.indexOf(n.k) >= 0) { res.score -= 3; res.warns.push(TL[n.k] + ' is a weakness — ' + n.why); }
       else if (s.indexOf(n.k) >= 0) { res.score += 2; res.goods.push(TL[n.k]); }
@@ -144,12 +165,24 @@
       '<div class="alt-row"><div><div class="tr-label">Also plays · offense</div><div class="alt-picks" data-name="offAlt"></div></div><div><div class="tr-label">Also plays · defense</div><div class="alt-picks" data-name="defAlt"></div></div></div>' +
       '<div class="tr-label good">Strengths</div>' + chipPicker('strengths', editing.strengths) +
       '<div class="tr-label bad">Weaknesses</div>' + chipPicker('weaknesses', editing.weaknesses) +
+      '<div class="tr-label">Ratings vs the league <span class="muted">— used by the simulation when he’s assigned to a spot. <b>Auto</b> grades from the strengths and weaknesses above.</span></div>' +
+      '<div class="op-sel rf-ratings" id="rf-ratings"></div>' +
       '<label class="dd"><span>Notes</span><input id="rf-notes" value="' + esc(editing.notes || '') + '" placeholder="Optional"></label>' +
       '<div class="series-actions"><button class="btn primary" id="rf-save">Save player</button><button class="btn ghost" id="rf-cancel">Cancel</button>' + (editing.id && canEditAll() ? '<button class="btn ghost danger" id="rf-del">Remove</button>' : '') + '</div>';
-    renderAlts();
-    $('#rf-off').addEventListener('change', function (e) { editing.offPos = e.target.value; editing.offAlt = editing.offAlt.filter(function (x) { return x !== editing.offPos; }); renderAlts(); });
+    editing.ratings = editing.ratings || {};
+    renderAlts(); renderRatings();
+    $('#rf-off').addEventListener('change', function (e) { editing.offPos = e.target.value; editing.offAlt = editing.offAlt.filter(function (x) { return x !== editing.offPos; }); renderAlts(); renderRatings(); });
     $('#rf-def').addEventListener('change', function (e) { editing.defPos = e.target.value; editing.defAlt = editing.defAlt.filter(function (x) { return x !== editing.defPos; }); renderAlts(); });
     $('#rf-name').focus();
+  }
+  function renderRatings() {
+    var box = $('#rf-ratings'); if (!box || !A.RATINGS) return;
+    Array.prototype.forEach.call(box.querySelectorAll('select'), function (s) { editing.ratings[s.dataset.r] = s.value === 'auto' ? null : +s.value; });   // keep picks while redrawing
+    box.innerHTML = Object.keys(A.RATINGS).filter(function (k) { return !QB_ONLY[k] || playsQB(editing); }).map(function (k) {
+      var R = A.RATINGS[k], cur = manual(editing, k), lbl = function (w) { var t = w.replace(/ (awareness|arm|decisions|vs the blitz)$/i, ''); return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(); };
+      return '<label class="dd"><span>' + R[0] + '</span><select data-r="' + k + '"><option value="auto">Auto · ' + esc(lbl(A.ratingWord(R[1], autoRating(editing, k))).toLowerCase()) + '</option>' +
+        R[1].map(function (o) { return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + esc(lbl(o[1])) + '</option>'; }).join('') + '</select></label>';
+    }).join('');
   }
   var OFF_ALT = [['QB', 'QB'], ['C', 'Center'], ['X', 'X'], ['Y', 'Y'], ['Z', 'Z']], DEF_ALT = [['B', 'Blitzer'], ['CB', 'Corner'], ['M', 'Middle'], ['S', 'Safety']];
   function renderAlts() {
@@ -164,13 +197,13 @@
   $('#ro-add').addEventListener('click', function () { openForm(null); });
   $('#ro-form').addEventListener('click', function (e) {
     var ac = e.target.closest('.alt-picks .chip');
-    if (ac) { var arr2 = editing[ac.parentNode.dataset.name], i2 = arr2.indexOf(ac.dataset.k); if (i2 >= 0) arr2.splice(i2, 1); else arr2.push(ac.dataset.k); ac.classList.toggle('on', i2 < 0); return; }
+    if (ac) { var arr2 = editing[ac.parentNode.dataset.name], i2 = arr2.indexOf(ac.dataset.k); if (i2 >= 0) arr2.splice(i2, 1); else arr2.push(ac.dataset.k); ac.classList.toggle('on', i2 < 0); renderRatings(); return; }
     var c = e.target.closest('.trait-picks .chip');
     if (c) {
       var name = c.parentNode.dataset.name, other = name === 'strengths' ? 'weaknesses' : 'strengths', k = c.dataset.k;
       var arr = editing[name], i = arr.indexOf(k);
       if (i >= 0) arr.splice(i, 1); else { arr.push(k); var j = editing[other].indexOf(k); if (j >= 0) { editing[other].splice(j, 1); var oc = $('.trait-picks[data-name="' + other + '"] [data-k="' + k + '"]'); if (oc) oc.classList.remove('on'); } }
-      c.classList.toggle('on', i < 0); return;
+      c.classList.toggle('on', i < 0); renderRatings(); return;   // the Auto grades follow the strengths/weaknesses
     }
     if (e.target.id === 'rf-cancel') { $('#ro-form').classList.add('hidden'); editing = null; return; }
     if (e.target.id === 'rf-del') {
@@ -182,6 +215,9 @@
     if (e.target.id === 'rf-save') {
       editing.name = $('#rf-name').value.trim(); if (!editing.name) { A.toast('Add a name.'); return; }
       editing.number = $('#rf-num').value; editing.offPos = $('#rf-off').value; editing.defPos = $('#rf-def').value; editing.notes = $('#rf-notes').value.trim();
+      renderRatings();   // reads the dropdowns into editing.ratings
+      var rt = {}; Object.keys(editing.ratings || {}).forEach(function (k) { if (editing.ratings[k] != null && (!QB_ONLY[k] || playsQB(editing))) rt[k] = editing.ratings[k]; });
+      if (Object.keys(rt).length) editing.ratings = rt; else delete editing.ratings;
       if (editing.id) ST.S.data.roster = roster().map(function (p) { return p.id === editing.id ? editing : p; });
       else { editing.id = ST.uid('p'); roster().push(editing); }
       $('#ro-form').classList.add('hidden'); A.toast(editing.name + ' saved for the whole team.'); editing = null; ST.save();
@@ -319,5 +355,7 @@
     }).join('') + '</ul><button class="btn small" onclick="APP.showTab(\'roster\')">Edit assignments</button></div>';
   };
   A.playReport = playReport;
+  A.ourRating = rating;
+  A.rosterPlayer = player;
   A.ROSTER = { TRAITS: TRAITS, offNeeds: offNeeds, defNeeds: defNeeds, fit: fit };
 })();
